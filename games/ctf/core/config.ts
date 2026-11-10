@@ -12,16 +12,22 @@ export interface CtfConfig {
   roundSeconds: number;
   /** 射擊距離（格） */
   shootRange: number;
+  /** 生命值上限（重生時補滿到這個數） */
+  maxHp: number;
+  /** 每槍傷害 */
+  shotDamage: number;
   /** 獲勝分數 */
   winningScore: number;
-  /** 淘汰後離場回合數 */
-  eliminatedRounds: number;
+  /** 倒地後離場回合數 */
+  knockedDownRounds: number;
   /** 重生後無敵回合數 */
   invulnerableRounds: number;
   /** 旗子重生等待回合數 */
   flagReturnRounds: number;
-  /** 回合上限 */
-  maxRounds: number;
+  /** 正規賽回合上限 */
+  regularMaxRounds: number;
+  /** 延長賽回合上限 */
+  overtimeMaxRounds: number;
   /** 各隊重生點 */
   spawnPoints: Record<Team, Position>;
   /** 旗子起點 */
@@ -35,11 +41,14 @@ export const CTF_CONFIG: CtfConfig = {
   boardHeight: 9,
   roundSeconds: 3,
   shootRange: 2,
+  maxHp: 3,
+  shotDamage: 1,
   winningScore: 3,
-  eliminatedRounds: 2,
+  knockedDownRounds: 2,
   invulnerableRounds: 2,
   flagReturnRounds: 2,
-  maxRounds: 200,
+  regularMaxRounds: 200,
+  overtimeMaxRounds: 50,
   spawnPoints: {
     A: { x: 0, y: 4 },
     B: { x: 8, y: 4 },
