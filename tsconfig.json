@@ -10,7 +10,8 @@
     "erasableSyntaxOnly": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
-  "include": ["games/**/*.ts"]
+  "include": ["games/**/*.ts", "server/**/*.ts", "web/src/**/*.ts", "vite.config.ts", "vitest.config.ts"]
 }

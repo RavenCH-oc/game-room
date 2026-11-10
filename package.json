@@ -5,6 +5,9 @@
   "type": "module",
   "description": "給朋友在 Discord 裡玩的網頁小遊戲合集",
   "scripts": {
+    "dev": "node --watch-path=server --watch-path=games server/main.ts --dev",
+    "build": "vite build",
+    "start": "node server/main.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "ctf:match": "node games/ctf/scripts/match.ts"
@@ -14,7 +17,12 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
     "typescript": "^7.0.2",
+    "vite": "^7.1.12",
     "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
   }
 }

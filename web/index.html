@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>方塊格奪旗</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="connection-banner" class="banner" hidden>連線中斷，正在重新連線…</div>
+
+    <!-- 大廳 -->
+    <main id="lobby-screen" class="screen" hidden>
+      <h1>方塊格奪旗</h1>
+
+      <label class="field">
+        <span>暱稱（1 到 12 個字）</span>
+        <input id="nickname-input" type="text" maxlength="12" autocomplete="nickname" />
+      </label>
+
+      <section class="card">
+        <h2>開房間</h2>
+        <div class="choices" role="radiogroup" aria-label="對手">
+          <label><input type="radio" name="opponent" value="friend" checked /> 等朋友</label>
+          <label><input type="radio" name="opponent" value="aiFlagRunner" /> AI：搶旗</label>
+          <label><input type="radio" name="opponent" value="aiRandomWalker" /> AI：亂走</label>
+        </div>
+        <button id="create-button" class="primary">開房間</button>
+      </section>
+
+      <section class="card">
+        <h2>加入房間</h2>
+        <label class="field">
+          <span>4 碼房號</span>
+          <input id="room-code-input" type="text" maxlength="4" autocomplete="off" placeholder="例如 ABCD" />
+        </label>
+        <button id="join-button" class="primary">加入</button>
+      </section>
+
+      <p id="lobby-error" class="error" role="alert" hidden></p>
+    </main>
+
+    <!-- 等待朋友 -->
+    <main id="waiting-screen" class="screen" hidden>
+      <h1>等待朋友加入</h1>
+      <p>把房號告訴朋友：</p>
+      <p id="waiting-room-code" class="room-code"></p>
+      <button id="cancel-waiting-button">取消，回大廳</button>
+    </main>
+
+    <!-- 比賽 -->
+    <main id="game-screen" class="screen" hidden>
+      <header class="scoreboard">
+        <div class="team team-a">
+          <span id="name-a" class="team-name"></span>
+          <span id="score-a" class="score"></span>
+          <span id="knockdowns-a" class="knockdowns"></span>
+        </div>
+        <div class="round-info">
+          <div id="round-label"></div>
+          <div id="room-label" class="muted"></div>
+        </div>
+        <div class="team team-b">
+          <span id="name-b" class="team-name"></span>
+          <span id="score-b" class="score"></span>
+          <span id="knockdowns-b" class="knockdowns"></span>
+        </div>
+      </header>
+
+      <div class="timer"><div id="timer-fill" class="timer-fill"></div></div>
+
+      <div class="board-wrap">
+        <div id="board" class="board"></div>
+        <svg id="shot-layer" class="shot-layer" viewBox="0 0 9 9" preserveAspectRatio="none"></svg>
+        <div id="countdown-overlay" class="overlay" hidden></div>
+      </div>
+
+      <p id="status-line" class="status"></p>
+
+      <div class="controls">
+        <button id="shoot-button">射擊</button>
+        <button id="drop-button">放下旗子</button>
+        <button id="stay-button">不動</button>
+      </div>
+      <p id="control-hint" class="muted hint"></p>
+      <p class="muted hint">鍵盤：W A S D 移動 · 方向鍵 射擊 · F 放下旗子 · 空白鍵 不動</p>
+
+      <section class="log-card">
+        <h2>最近發生的事</h2>
+        <ol id="event-log" class="log"></ol>
+      </section>
+
+      <div id="finished-panel" class="finished" hidden>
+        <div class="finished-card">
+          <h2 id="finished-title"></h2>
+          <p id="finished-reason"></p>
+          <p id="finished-stats"></p>
+          <p id="rematch-status" class="muted"></p>
+          <div class="controls">
+            <button id="rematch-button" class="primary">再來一場</button>
+            <button id="lobby-button">回大廳</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
