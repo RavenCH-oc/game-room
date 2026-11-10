@@ -1,0 +1,25 @@
+# 套件
+node_modules/
+
+# 建置輸出
+dist/
+build/
+*.tsbuildinfo
+
+# 測試覆蓋率
+coverage/
+
+# 紀錄檔
+npm-debug.log*
+*.log
+
+# 環境變數
+.env
+.env.*
+!.env.example
+
+# 編輯器與系統檔
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
