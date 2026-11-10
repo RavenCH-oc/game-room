@@ -49,6 +49,7 @@ game-room/
 - `npm install`：安裝套件
 - `npm test`：跑全部測試
 - `npm run typecheck`：型別檢查
+- `npm run ctf:match`：讓兩個範例 AI 對打一場奪旗，在終端機印出每回合場地（可加種子：`npm run ctf:match -- 42`）
 
 （新增指令時請更新這一段。）
 
