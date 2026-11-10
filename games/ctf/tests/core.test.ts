@@ -12,6 +12,13 @@ describe('第 2 節：場地', () => {
     expect(state.flag).toEqual({ status: 'onGround', position: { x: 4, y: 4 } });
     expect(state.scores).toEqual({ A: 0, B: 0 });
   });
+
+  it('第 8 節：場面包含每個角色的生命值、每隊擊倒數、是不是延長賽', () => {
+    const state = createInitialState();
+    expect(state.characters.map((character) => character.hp)).toEqual([3, 3]);
+    expect(state.knockdowns).toEqual({ A: 0, B: 0 });
+    expect(state.phase).toBe('regular');
+  });
 });
 
 describe('第 7 節：設定檔', () => {
@@ -21,11 +28,14 @@ describe('第 7 節：設定檔', () => {
       boardHeight: 9,
       roundSeconds: 3,
       shootRange: 2,
+      maxHp: 3,
+      shotDamage: 1,
       winningScore: 3,
-      eliminatedRounds: 2,
+      knockedDownRounds: 2,
       invulnerableRounds: 2,
       flagReturnRounds: 2,
-      maxRounds: 200,
+      regularMaxRounds: 200,
+      overtimeMaxRounds: 50,
     });
     expect(CTF_CONFIG.walls).toHaveLength(6);
   });
@@ -72,7 +82,7 @@ describe('第 3、8 節：核心的要求', () => {
 });
 
 describe('第 8 節：範例 AI 對打一整場', () => {
-  it('隨機亂走 vs 直接搶旗，會在 200 回合內分出結果', () => {
+  it('範例 AI 在新規則下能打完一整場（隨機亂走 vs 直接搶旗）', () => {
     const bots = { A1: createRandomWalker(1), B1: createFlagRunner() };
     let state = createInitialState();
     while (!state.result) {
@@ -82,7 +92,7 @@ describe('第 8 節：範例 AI 對打一整場', () => {
       };
       state = resolveRound(state, actions).state;
     }
-    expect(state.round).toBeLessThanOrEqual(200);
+    expect(state.round).toBeLessThanOrEqual(250);
     expect(state.result).not.toBeNull();
   });
 });

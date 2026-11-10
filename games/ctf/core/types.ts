@@ -19,8 +19,10 @@ export type Action =
 export interface Character {
   id: string;
   team: Team;
-  /** 在場時的位置；被淘汰離場中為 null */
+  /** 在場時的位置；倒地離場中為 null */
   position: Position | null;
+  /** 目前生命值（倒地離場中為 0，重生時補滿） */
+  hp: number;
   /** 離場中：還要再等幾回合才重生（在場時為 0） */
   respawnCountdown: number;
   /** 無敵還剩幾回合（0 表示沒有無敵） */
@@ -33,12 +35,29 @@ export type FlagState =
   | { status: 'carried'; carrierId: string }
   | { status: 'returning'; roundsLeft: number };
 
-export type GameResult = { winner: Team } | { winner: null; draw: true };
+/** 比賽進行到哪個階段：正規賽或延長賽（規則第 6 節） */
+export type Phase = 'regular' | 'overtime';
+
+/** 比賽是用哪一種方式結束的（規則第 6 節「其他」） */
+export type ResultReason =
+  | 'reachedWinningScore' // 拿到 3 分
+  | 'higherScore' // 第 200 回合結算後分數較高
+  | 'moreKnockdowns' // 分數相同，擊倒數較多
+  | 'overtimeScore' // 延長賽得分
+  | 'overtimeKnockdown' // 延長賽擊倒
+  | 'draw'; // 延長賽回合上限到了，平手
+
+export type GameResult =
+  | { winner: Team; reason: Exclude<ResultReason, 'draw'> }
+  | { winner: null; reason: 'draw' };
 
 export interface GameState {
-  /** 已經結算完的回合數（開場是 0） */
+  /** 已經結算完的回合數（開場是 0；延長賽接著往上數，例如第 201 回合） */
   round: number;
+  phase: Phase;
   scores: Record<Team, number>;
+  /** 每隊打倒對方幾次（擊倒數） */
+  knockdowns: Record<Team, number>;
   /** 用陣列存角色，之後 2v2、3v3 只要多放幾個角色 */
   characters: Character[];
   flag: FlagState;
@@ -54,14 +73,16 @@ export type GameEvent =
   | { type: 'invalidAction'; characterId: string; action: unknown; reason: string }
   | { type: 'shot'; shooterId: string; direction: Direction; from: Position; hitId: string | null }
   | { type: 'shotBlockedByInvulnerable'; shooterId: string; targetId: string }
-  | { type: 'eliminated'; characterId: string; byId: string; position: Position }
-  | { type: 'flagDropped'; characterId: string; position: Position; reason: 'dropped' | 'eliminated' }
+  | { type: 'damaged'; characterId: string; byId: string; damage: number; hpLeft: number }
+  | { type: 'knockedDown'; characterId: string; byIds: string[]; position: Position }
+  | { type: 'flagDropped'; characterId: string; position: Position; reason: 'dropped' | 'knockedDown' }
   | { type: 'moved'; characterId: string; from: Position; to: Position }
   | { type: 'moveBlocked'; characterId: string; from: Position; direction: Direction; reason: MoveBlockReason }
   | { type: 'flagPickedUp'; characterId: string; position: Position }
   | { type: 'scored'; characterId: string; team: Team; scores: Record<Team, number> }
   | { type: 'flagReturned'; position: Position }
-  | { type: 'respawned'; characterId: string; position: Position }
+  | { type: 'respawned'; characterId: string; position: Position; hp: number }
+  | { type: 'overtimeStarted' }
   | { type: 'gameOver'; result: GameResult };
 
 export type MoveBlockReason =
