@@ -47,6 +47,9 @@ game-room/
 ## 常用指令
 
 - `npm install`：安裝套件
+- `npm run dev`：開發用，同時啟動伺服器和網頁（http://localhost:3000），改程式會自動更新
+- `npm run build`：打包網頁到 `web/dist/`
+- `npm start`：用打包好的網頁啟動伺服器（要先 `npm run build`）
 - `npm test`：跑全部測試
 - `npm run typecheck`：型別檢查
 - `npm run ctf:match`：讓兩個範例 AI 對打一場奪旗，在終端機印出每回合場地（可加種子：`npm run ctf:match -- 42`）
