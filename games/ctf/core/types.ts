@@ -33,7 +33,8 @@ export interface Character {
 export type FlagState =
   | { status: 'onGround'; position: Position }
   | { status: 'carried'; carrierId: string }
-  | { status: 'returning'; roundsLeft: number };
+  /** 得分後等待重新出現：還要等幾回合、下一次出現在哪一格（v0.3） */
+  | { status: 'returning'; roundsLeft: number; nextPosition: Position };
 
 /** 比賽進行到哪個階段：正規賽或延長賽（規則第 6 節） */
 export type Phase = 'regular' | 'overtime';
@@ -75,7 +76,7 @@ export type GameEvent =
   | { type: 'shotBlockedByInvulnerable'; shooterId: string; targetId: string }
   | { type: 'damaged'; characterId: string; byId: string; damage: number; hpLeft: number }
   | { type: 'knockedDown'; characterId: string; byIds: string[]; position: Position }
-  | { type: 'flagDropped'; characterId: string; position: Position; reason: 'dropped' | 'knockedDown' }
+  | { type: 'flagDropped'; characterId: string; position: Position; reason: FlagDropReason }
   | { type: 'moved'; characterId: string; from: Position; to: Position }
   | { type: 'moveBlocked'; characterId: string; from: Position; direction: Direction; reason: MoveBlockReason }
   | { type: 'flagPickedUp'; characterId: string; position: Position }
@@ -84,6 +85,9 @@ export type GameEvent =
   | { type: 'respawned'; characterId: string; position: Position; hp: number }
   | { type: 'overtimeStarted' }
   | { type: 'gameOver'; result: GameResult };
+
+/** 旗子為什麼掉在地上：自己放下、被打中（v0.3）、倒地 */
+export type FlagDropReason = 'dropped' | 'hit' | 'knockedDown';
 
 export type MoveBlockReason =
   | 'wall'

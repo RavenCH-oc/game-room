@@ -1,4 +1,4 @@
-// 回合結算（規則第 4、5、6 節，v0.2）。
+// 回合結算（規則第 4、5、6 節，v0.3）。
 // 純邏輯：不改傳進來的場面、不用隨機、不計時。同樣的輸入一定得到同樣的輸出。
 
 import {
@@ -11,6 +11,7 @@ import {
   step,
 } from './board.ts';
 import { CTF_CONFIG, type CtfConfig } from './config.ts';
+import { flagSpawnPosition } from './state.ts';
 import type {
   Action,
   ActionMap,
@@ -70,6 +71,8 @@ export function resolveRound(
   for (const character of next.characters) {
     if (!character.position || knockedDownIds.has(character.id)) continue;
     if (chosenActions.get(character.id)?.type !== 'dropFlag') continue;
+    // 步驟 1 被打掉旗子的話，已經不是持旗者了，不用再放一次
+    if (next.flag.status !== 'carried' || next.flag.carrierId !== character.id) continue;
     next.flag = { status: 'onGround', position: { ...character.position } };
     events.push({
       type: 'flagDropped',
@@ -108,7 +111,14 @@ export function resolveRound(
       samePosition(carrier.position, config.spawnPoints[carrier.team])
     ) {
       next.scores[carrier.team] += 1;
-      next.flag = { status: 'returning', roundsLeft: config.flagReturnRounds };
+      // v0.3：下一次出現的位置照順序輪流。全場共用一個順序：
+      // 開場是第 0 次，第 n 次得分（兩隊加總）後是第 n 次
+      const totalScores = next.scores.A + next.scores.B;
+      next.flag = {
+        status: 'returning',
+        roundsLeft: config.flagReturnRounds,
+        nextPosition: { ...flagSpawnPosition(totalScores, config) },
+      };
       scoredThisRound = true;
       scoringTeam = carrier.team;
       events.push({
@@ -230,17 +240,27 @@ function resolveShooting(
       target.hp = Math.max(0, target.hp - config.shotDamage);
       events.push({ type: 'damaged', characterId: targetId, byId: shooterId, damage: config.shotDamage, hpLeft: target.hp });
     }
-    if (target.hp > 0) continue;
+    const position = startPositions.get(targetId)!;
+    const isCarrier = next.flag.status === 'carried' && next.flag.carrierId === targetId;
+
+    if (target.hp > 0) {
+      // v0.3：持旗者被打中但沒倒地，旗子也掉在他回合開始時的那一格（開關打開時）。
+      // 他這回合的動作照常執行
+      if (isCarrier && config.dropFlagWhenHit) {
+        next.flag = { status: 'onGround', position: { ...position } };
+        events.push({ type: 'flagDropped', characterId: targetId, position: { ...position }, reason: 'hit' });
+      }
+      continue;
+    }
 
     // 生命值歸零：倒地。不管幾個人打中，一個角色倒地只算 1 次擊倒
-    const position = startPositions.get(targetId)!;
     const creditedTeam = otherTeam(target.team);
     next.knockdowns[creditedTeam] += 1;
     knockdownTeams.add(creditedTeam);
     knockedDownIds.add(targetId);
     events.push({ type: 'knockedDown', characterId: targetId, byIds: [...shooterIds], position: { ...position } });
 
-    if (next.flag.status === 'carried' && next.flag.carrierId === targetId) {
+    if (isCarrier) {
       next.flag = { status: 'onGround', position: { ...position } };
       events.push({ type: 'flagDropped', characterId: targetId, position: { ...position }, reason: 'knockedDown' });
     }
@@ -406,14 +426,15 @@ function resolveCountdowns(
     }
   }
 
-  // 旗子：這回合才得分的不扣，之前就在等的扣一回合；扣到 0 就回到中央
+  // 旗子：這回合才得分的不扣，之前就在等的扣一回合；扣到 0 就出現在預定的位置
   if (next.flag.status === 'returning') {
     if (!scoredThisRound) {
       next.flag.roundsLeft -= 1;
     }
     if (next.flag.roundsLeft <= 0) {
-      next.flag = { status: 'onGround', position: { ...config.flagStart } };
-      events.push({ type: 'flagReturned', position: { ...config.flagStart } });
+      const position = next.flag.nextPosition;
+      next.flag = { status: 'onGround', position: { ...position } };
+      events.push({ type: 'flagReturned', position: { ...position } });
     }
   }
 }

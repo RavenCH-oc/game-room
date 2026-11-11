@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveRound, type GameState } from '../core/index.ts';
+import { CTF_CONFIG, resolveRound, type GameState } from '../core/index.ts';
 import { FLAG_FAR_AWAY, dropFlag, hpOf, makeState, move, positionOf, shoot, stay } from './helpers.ts';
 
 describe('第 4 節／第 5 節步驟 1：射擊的命中範圍', () => {
@@ -203,16 +203,75 @@ describe('第 4 節／第 5 節步驟 1：持旗者與射擊', () => {
     expect(events).toContainEqual(expect.objectContaining({ type: 'invalidAction', characterId: 'A1' }));
   });
 
-  it('持旗者被打中但沒倒地：旗子還在手上', () => {
+  it('v0.3：持旗者被打中但沒倒地，旗子掉在他回合開始時的那一格，他這回合的移動照常執行', () => {
     const state = makeState({
       A1: { position: { x: 1, y: 0 } },
       B1: { position: { x: 3, y: 0 } },
       flag: { status: 'carried', carrierId: 'B1' },
     });
-    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: move('down') });
+    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('down') });
+    expect(hpOf(next, 'B1')).toBe(2);
+    expect(positionOf(next, 'B1')).toEqual({ x: 3, y: 1 });
+    expect(next.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
+    expect(events).toContainEqual({ type: 'flagDropped', characterId: 'B1', position: { x: 3, y: 0 }, reason: 'hit' });
+  });
+
+  it('掉旗開關關掉時：持旗者被打中但沒倒地，旗子還在手上', () => {
+    const config = { ...CTF_CONFIG, dropFlagWhenHit: false };
+    const state = makeState({
+      A1: { position: { x: 1, y: 0 } },
+      B1: { position: { x: 3, y: 0 } },
+      flag: { status: 'carried', carrierId: 'B1' },
+    });
+    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: move('down') }, config);
     expect(hpOf(next, 'B1')).toBe(2);
     expect(next.flag).toEqual({ status: 'carried', carrierId: 'B1' });
     expect(positionOf(next, 'B1')).toEqual({ x: 3, y: 1 });
+  });
+
+  it('v0.3：被打掉的旗子，同一回合可以被走進那一格的對手撿起', () => {
+    // A1 打掉 B1 的旗子；B1 往下走開；A2 同回合從左邊走進 (3, 0) 撿起
+    const state = makeState({
+      A1: { position: { x: 5, y: 0 } },
+      B1: { position: { x: 3, y: 0 } },
+      extra: [{ id: 'A2', team: 'A', position: { x: 2, y: 0 } }],
+      flag: { status: 'carried', carrierId: 'B1' },
+    });
+    const { state: next, events } = resolveRound(state, { A1: shoot('left'), B1: move('down'), A2: move('right') });
+    expect(next.flag).toEqual({ status: 'carried', carrierId: 'A2' });
+    expect(events).toContainEqual(expect.objectContaining({ type: 'flagPickedUp', characterId: 'A2' }));
+  });
+
+  it('v0.3：被打掉旗子的人還站在那一格，不會自動撿回', () => {
+    const state = makeState({
+      A1: { position: { x: 1, y: 0 } },
+      B1: { position: { x: 3, y: 0 } },
+      flag: { status: 'carried', carrierId: 'B1' },
+    });
+    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: stay });
+    expect(next.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
+  });
+
+  it('v0.3：持旗者被打中時選了放旗，旗子只掉一次', () => {
+    const state = makeState({
+      A1: { position: { x: 1, y: 0 } },
+      B1: { position: { x: 3, y: 0 } },
+      flag: { status: 'carried', carrierId: 'B1' },
+    });
+    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: dropFlag });
+    expect(next.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
+    expect(events.filter((event) => event.type === 'flagDropped')).toEqual([expect.objectContaining({ reason: 'hit' })]);
+  });
+
+  it('v0.3：無敵中的持旗者被射擊不會掉旗', () => {
+    const state = makeState({
+      A1: { position: { x: 1, y: 0 } },
+      B1: { position: { x: 3, y: 0 }, invulnerableRoundsLeft: 2 },
+      flag: { status: 'carried', carrierId: 'B1' },
+    });
+    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: move('down') });
+    expect(hpOf(next, 'B1')).toBe(3);
+    expect(next.flag).toEqual({ status: 'carried', carrierId: 'B1' });
   });
 
   it('持旗者倒地：旗子掉在他原本的格子', () => {

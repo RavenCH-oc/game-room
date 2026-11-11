@@ -31,13 +31,15 @@ export function describeEvent(event: GameEvent, myId: string): string | null {
     case 'knockedDown':
       return `${who(event.characterId)}倒地了！`;
     case 'flagDropped':
-      return event.reason === 'dropped' ? `${who(event.characterId)}放下旗子` : '旗子掉在地上';
+      if (event.reason === 'dropped') return `${who(event.characterId)}放下旗子`;
+      if (event.reason === 'hit') return `${who(event.characterId)}的旗子被打掉了！`;
+      return '旗子掉在地上';
     case 'flagPickedUp':
       return `${who(event.characterId)}撿起旗子`;
     case 'scored':
       return `${who(event.characterId)}帶旗回家，得 1 分！`;
     case 'flagReturned':
-      return '旗子回到中央';
+      return '旗子重新出現了';
     case 'respawned':
       return `${who(event.characterId)}在重生點復活`;
     case 'overtimeStarted':

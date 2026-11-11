@@ -2,7 +2,7 @@
 
 export { CTF_CONFIG, type CtfConfig } from './config.ts';
 export * from './types.ts';
-export { createInitialState, getCharacterView } from './state.ts';
+export { createInitialState, flagSpawnPosition, getCharacterView } from './state.ts';
 export { resolveRound } from './resolve.ts';
 export {
   DIRECTIONS,

@@ -1,22 +1,9 @@
-// 範例 AI：直接搶旗回家。
+// 範例 AI：搶旗（規則第 8 節）。
 // 沒拿旗：走最短路去旗子那格。拿到旗：走最短路回自己的重生點。
-// 不射擊、不躲人；旗子不在場上（得分後等待中）時就往中央走。
+// 不射擊、不躲人；旗子等待重新出現時，往下一次出現的位置走（v0.3）。
 
-import {
-  CTF_CONFIG,
-  DIRECTIONS,
-  isEnemySpawn,
-  isInsideBoard,
-  isWall,
-  samePosition,
-  step,
-  type Action,
-  type Bot,
-  type CtfConfig,
-  type Direction,
-  type Position,
-  type Team,
-} from '../core/index.ts';
+import { CTF_CONFIG, flagSpawnPosition, samePosition, type Bot, type CtfConfig, type Position } from '../core/index.ts';
+import { moveTowards, stepAside } from './pathfinding.ts';
 
 export function createFlagRunner(config: CtfConfig = CTF_CONFIG): Bot {
   return (view) => {
@@ -34,58 +21,13 @@ export function createFlagRunner(config: CtfConfig = CTF_CONFIG): Bot {
       if (samePosition(self.position, goal)) {
         return stepAside(self.position, self.team, config);
       }
+    } else if (flag.status === 'returning') {
+      goal = flag.nextPosition;
     } else {
-      goal = config.flagStart;
+      // 旗子在對手手上：規則沒寫，維持舊版做法，往中央（第一個出現位置）走
+      goal = flagSpawnPosition(0, config);
     }
 
-    const direction = firstStepTowards(self.position, goal, self.team, config);
-    return direction ? { type: 'move', direction } : { type: 'stay' };
+    return moveTowards(self.position, goal, self.team, config);
   };
-}
-
-function canEnter(position: Position, team: Team, config: CtfConfig): boolean {
-  return isInsideBoard(position, config) && !isWall(position, config) && !isEnemySpawn(position, team, config);
-}
-
-function stepAside(position: Position, team: Team, config: CtfConfig): Action {
-  for (const direction of DIRECTIONS) {
-    if (canEnter(step(position, direction), team, config)) {
-      return { type: 'move', direction };
-    }
-  }
-  return { type: 'stay' };
-}
-
-/** 廣度優先搜尋找最短路，回傳第一步的方向；已經在終點或走不到時回傳 null */
-function firstStepTowards(
-  start: Position,
-  goal: Position,
-  team: Team,
-  config: CtfConfig,
-): Direction | null {
-  if (samePosition(start, goal)) return null;
-
-  const key = (position: Position): string => `${position.x},${position.y}`;
-  const visited = new Set<string>([key(start)]);
-  const queue: { position: Position; firstDirection: Direction }[] = [];
-
-  for (const direction of DIRECTIONS) {
-    const next = step(start, direction);
-    if (!canEnter(next, team, config)) continue;
-    if (samePosition(next, goal)) return direction;
-    visited.add(key(next));
-    queue.push({ position: next, firstDirection: direction });
-  }
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const direction of DIRECTIONS) {
-      const next = step(current.position, direction);
-      if (visited.has(key(next)) || !canEnter(next, team, config)) continue;
-      if (samePosition(next, goal)) return current.firstDirection;
-      visited.add(key(next));
-      queue.push({ position: next, firstDirection: current.firstDirection });
-    }
-  }
-  return null;
 }

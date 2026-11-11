@@ -181,6 +181,17 @@ describe('第 4 節：房間流程', () => {
     expect(a.lastRoom().phase).toBe('playing');
   });
 
+  it('開房可以選「AI：攻擊」', () => {
+    const manager = new RoomManager();
+    const a = fakeClient(manager);
+    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiAttacker' });
+    expect(a.lastRoom().seats.B).toMatchObject({ nickname: 'AI：攻擊', isAi: true });
+    vi.advanceTimersByTime(COUNTDOWN_MS);
+    actionFor(a, { type: 'stay' });
+    // 攻擊 AI 沒有射擊機會，往旗子走了一格
+    expect(a.lastRoom().game!.characters[1]!.position).toEqual({ x: 7, y: 4 });
+  });
+
   it('對 AI：AI 每回合由伺服器呼叫腳本出手', () => {
     const manager = new RoomManager();
     const a = fakeClient(manager);
@@ -263,7 +274,7 @@ describe('第 5 節：比賽中的回合', () => {
       ...CTF_CONFIG,
       maxHp: 1,
       spawnPoints: { A: { x: 3, y: 0 }, B: { x: 4, y: 0 } },
-      flagStart: { x: 4, y: 8 },
+      flagSpawnOrder: [{ x: 4, y: 8 }],
     };
     const manager = new RoomManager({ ctfConfig });
     const { a, b } = startPlaying(manager);

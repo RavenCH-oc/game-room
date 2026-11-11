@@ -66,8 +66,8 @@ describe('第 4 節／第 5 節步驟 2、4、5：旗子', () => {
     expect(events).toContainEqual(expect.objectContaining({ type: 'scored', team: 'A', characterId: 'A1' }));
   });
 
-  it('得分後旗子 2 回合後回到中央 (4, 4)', () => {
-    // 第 1 回合得分；第 2 回合結束時旗子還沒回來；第 3 回合結束時回到中央
+  it('得分後旗子 2 回合後重新出現（第 1 次得分後在上方 (4, 2)）', () => {
+    // 第 1 回合得分；第 2 回合結束時旗子還沒出現；第 3 回合結束時出現
     let state: GameState = makeState({
       A1: { position: { x: 1, y: 4 } },
       flag: { status: 'carried', carrierId: 'A1' },
@@ -79,19 +79,51 @@ describe('第 4 節／第 5 節步驟 2、4、5：旗子', () => {
     expect(state.flag.status).toBe('returning');
 
     const third = resolveRound(state, {});
-    expect(third.state.flag).toEqual({ status: 'onGround', position: { x: 4, y: 4 } });
-    expect(third.events).toContainEqual({ type: 'flagReturned', position: { x: 4, y: 4 } });
+    expect(third.state.flag).toEqual({ status: 'onGround', position: { x: 4, y: 2 } });
+    expect(third.events).toContainEqual({ type: 'flagReturned', position: { x: 4, y: 2 } });
   });
 
-  it('旗子剛好在角色腳下重生，不會被撿起', () => {
+  it('v0.3：旗子出現位置照中央、上方、下方的順序輪流，不分哪一隊得分', () => {
+    // 用「得分前的總分」擺出第 1、2、3、4 次得分的場面
+    const cases = [
+      { scores: { A: 0, B: 0 }, scorer: 'A1', expected: { x: 4, y: 2 } }, // 第 1 次得分 → 上方
+      { scores: { A: 1, B: 0 }, scorer: 'B1', expected: { x: 4, y: 6 } }, // 第 2 次得分 → 下方
+      { scores: { A: 1, B: 1 }, scorer: 'A1', expected: { x: 4, y: 4 } }, // 第 3 次得分 → 中央
+      { scores: { A: 2, B: 1 }, scorer: 'B1', expected: { x: 4, y: 2 } }, // 第 4 次得分 → 又是上方
+    ] as const;
+    for (const { scores, scorer, expected } of cases) {
+      const state = makeState({
+        A1: { position: scorer === 'A1' ? { x: 1, y: 4 } : { x: 0, y: 0 } },
+        B1: { position: scorer === 'B1' ? { x: 7, y: 4 } : { x: 8, y: 8 } },
+        flag: { status: 'carried', carrierId: scorer },
+        scores,
+      });
+      const actions = scorer === 'A1' ? { A1: move('left') } : { B1: move('right') };
+      const { state: next } = resolveRound(state, actions);
+      expect(next.flag).toEqual({ status: 'returning', roundsLeft: 2, nextPosition: expected });
+    }
+  });
+
+  it('v0.3：等待期間場面資訊裡有下一次出現的位置', () => {
+    let state: GameState = makeState({
+      A1: { position: { x: 1, y: 4 } },
+      flag: { status: 'carried', carrierId: 'A1' },
+    });
+    state = resolveRound(state, { A1: move('left') }).state;
+    expect(state.flag).toMatchObject({ status: 'returning', nextPosition: { x: 4, y: 2 } });
+    state = resolveRound(state, {}).state;
+    expect(state.flag).toEqual({ status: 'returning', roundsLeft: 1, nextPosition: { x: 4, y: 2 } });
+  });
+
+  it('旗子剛好在角色腳下重新出現，不會被撿起', () => {
     const state = makeState({
-      A1: { position: { x: 4, y: 4 } },
-      flag: { status: 'returning', roundsLeft: 1 },
+      A1: { position: { x: 4, y: 2 } },
+      flag: { status: 'returning', roundsLeft: 1, nextPosition: { x: 4, y: 2 } },
     });
     let next = resolveRound(state, {}).state;
-    expect(next.flag).toEqual({ status: 'onGround', position: { x: 4, y: 4 } });
+    expect(next.flag).toEqual({ status: 'onGround', position: { x: 4, y: 2 } });
     next = resolveRound(next, { A1: stay }).state;
     expect(next.flag.status).toBe('onGround');
-    expect(positionOf(next, 'A1')).toEqual({ x: 4, y: 4 });
+    expect(positionOf(next, 'A1')).toEqual({ x: 4, y: 2 });
   });
 });

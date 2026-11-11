@@ -4,6 +4,7 @@
 // 規則結算一律交給 games/ctf/core/。
 
 import { randomBytes } from 'node:crypto';
+import { createAttacker } from '../games/ctf/bots/attacker.ts';
 import { createFlagRunner } from '../games/ctf/bots/flagRunner.ts';
 import { createRandomWalker } from '../games/ctf/bots/randomWalker.ts';
 import {
@@ -83,7 +84,14 @@ export interface RoomManagerOptions {
   random?: () => number;
 }
 
-const OPPONENT_KINDS: readonly OpponentKind[] = ['friend', 'aiFlagRunner', 'aiRandomWalker'];
+const OPPONENT_KINDS: readonly OpponentKind[] = ['friend', 'aiAttacker', 'aiFlagRunner', 'aiRandomWalker'];
+
+/** AI 對手的顯示名稱 */
+const AI_NAMES: Record<Exclude<OpponentKind, 'friend'>, string> = {
+  aiAttacker: 'AI：攻擊',
+  aiFlagRunner: 'AI：搶旗',
+  aiRandomWalker: 'AI：亂走',
+};
 const TEAMS: readonly Team[] = ['A', 'B'];
 
 export class RoomManager {
@@ -202,8 +210,8 @@ export class RoomManager {
     if (opponent !== 'friend') {
       // AI 對手一律是 B 隊，跳過等待
       room.seats.B = {
-        nickname: opponent === 'aiFlagRunner' ? 'AI：搶旗' : 'AI：亂走',
-        bot: opponent === 'aiFlagRunner' ? createFlagRunner(this.ctfConfig) : createRandomWalker(this.randomSeed()),
+        nickname: AI_NAMES[opponent],
+        bot: this.createBot(opponent),
         token: null,
         connectionId: null,
         disconnectTimer: null,
@@ -557,6 +565,17 @@ export class RoomManager {
         code += ROOM_CODE_LETTERS[Math.floor(this.random() * ROOM_CODE_LETTERS.length)] ?? 'A';
       }
       if (!this.rooms.has(code)) return code;
+    }
+  }
+
+  private createBot(kind: Exclude<OpponentKind, 'friend'>): Bot {
+    switch (kind) {
+      case 'aiAttacker':
+        return createAttacker(this.ctfConfig);
+      case 'aiFlagRunner':
+        return createFlagRunner(this.ctfConfig);
+      case 'aiRandomWalker':
+        return createRandomWalker(this.randomSeed());
     }
   }
 

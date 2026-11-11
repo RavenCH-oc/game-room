@@ -267,6 +267,25 @@ input[type='text'] {
   font-size: clamp(1rem, 5vw, 1.8rem);
 }
 
+.flag-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.flag-preview-rounds {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  opacity: 1;
+}
+
 .piece {
   width: 82%;
   height: 82%;

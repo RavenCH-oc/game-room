@@ -36,7 +36,13 @@ describe('第 7 節：設定檔', () => {
       flagReturnRounds: 2,
       regularMaxRounds: 200,
       overtimeMaxRounds: 50,
+      dropFlagWhenHit: true,
     });
+    expect(CTF_CONFIG.flagSpawnOrder).toEqual([
+      { x: 4, y: 4 },
+      { x: 4, y: 2 },
+      { x: 4, y: 6 },
+    ]);
     expect(CTF_CONFIG.walls).toHaveLength(6);
   });
 });
