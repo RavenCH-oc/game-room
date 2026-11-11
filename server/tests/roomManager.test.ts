@@ -291,6 +291,83 @@ describe('第 5 節：比賽中的回合', () => {
     expect(a.lastRoom().opponentReady).toBe(false);
   });
 
+  describe('有人倒地時回合變短（第 5 節）', () => {
+    const SHORT_MS = SERVER_CONFIG.roundSecondsWhenSomeoneDown * 1000;
+    // 兩個重生點靠在一起、生命值 1：一槍就能做出「有人倒地」的場面
+    const quickKnockConfig: CtfConfig = {
+      ...CTF_CONFIG,
+      maxHp: 1,
+      spawnPoints: { A: { x: 3, y: 0 }, B: { x: 4, y: 0 } },
+      flagSpawnOrder: [{ x: 4, y: 8 }],
+    };
+
+    it('有人倒地離場中的回合是 1.5 秒；所有人都在場的回合是 3 秒；重生後的下一回合回到 3 秒', () => {
+      const manager = new RoomManager({ ctfConfig: quickKnockConfig });
+      const { a, b } = startPlaying(manager);
+      expect(a.lastRoom().roundTotalMs).toBe(ROUND_MS); // 第 1 回合：兩人都在場
+
+      actionFor(a, { type: 'shoot', direction: 'right' });
+      actionFor(b, { type: 'stay' });
+      expect(a.lastRoom().game!.characters[1]!.position).toBeNull(); // B 在第 1 回合倒地
+
+      // 第 2 回合：B 倒地中 → 1.5 秒
+      expect(a.lastRoom().roundTotalMs).toBe(SHORT_MS);
+      vi.advanceTimersByTime(SHORT_MS - 1);
+      expect(a.lastRoom().game!.round).toBe(1);
+      vi.advanceTimersByTime(1);
+      expect(a.lastRoom().game!.round).toBe(2);
+
+      // 第 3 回合：B 還在倒地中 → 1.5 秒；這回合結束時 B 重生
+      expect(a.lastRoom().roundTotalMs).toBe(SHORT_MS);
+      vi.advanceTimersByTime(SHORT_MS);
+      expect(a.lastRoom().game!.round).toBe(3);
+      expect(a.lastRoom().game!.characters[1]!.position).not.toBeNull();
+
+      // 第 4 回合：B 重生了，大家都在場 → 回到 3 秒
+      expect(a.lastRoom().roundTotalMs).toBe(ROUND_MS);
+      vi.advanceTimersByTime(ROUND_MS - 1);
+      expect(a.lastRoom().game!.round).toBe(3);
+      vi.advanceTimersByTime(1);
+      expect(a.lastRoom().game!.round).toBe(4);
+    });
+
+    it('1.5 秒的回合裡，在場真人都送出還是立刻結算', () => {
+      const manager = new RoomManager({ ctfConfig: quickKnockConfig });
+      const { a, b } = startPlaying(manager);
+      actionFor(a, { type: 'shoot', direction: 'right' });
+      actionFor(b, { type: 'stay' });
+      expect(a.lastRoom().roundTotalMs).toBe(SHORT_MS);
+      actionFor(a, { type: 'stay' }); // 在場的真人只有 A
+      expect(a.lastRoom().game!.round).toBe(2);
+    });
+
+    it('對 AI、真人倒地中：等滿 1.5 秒才結算，不會立刻結算', () => {
+      const manager = new RoomManager({ ctfConfig: quickKnockConfig });
+      const a = fakeClient(manager);
+      a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiAttacker' });
+      vi.advanceTimersByTime(COUNTDOWN_MS);
+      actionFor(a, { type: 'stay' }); // 攻擊 AI 就在旁邊，會開槍打倒 A
+      expect(a.lastRoom().game!.characters[0]!.position).toBeNull();
+
+      // 場上沒有要操作的真人：不會立刻結算，等滿 1.5 秒
+      expect(a.lastRoom().roundTotalMs).toBe(SHORT_MS);
+      vi.advanceTimersByTime(SHORT_MS - 1);
+      expect(a.lastRoom().game!.round).toBe(1);
+      vi.advanceTimersByTime(1);
+      expect(a.lastRoom().game!.round).toBe(2);
+    });
+
+    it('送給瀏覽器的資料裡有這回合實際的總秒數', () => {
+      const manager = new RoomManager();
+      const { a, b } = startFriendMatch(manager);
+      expect(a.lastRoom().roundTotalMs).toBeNull(); // 倒數中還沒有回合
+      vi.advanceTimersByTime(COUNTDOWN_MS);
+      expect(a.lastRoom().roundTotalMs).toBe(ROUND_MS);
+      expect(b.lastRoom().roundTotalMs).toBe(ROUND_MS);
+      expect(a.lastRoom().roundRemainingMs).toBe(ROUND_MS);
+    });
+  });
+
   it('送給某一邊的資料裡不包含對手還沒結算的動作', () => {
     const manager = new RoomManager();
     const { a, b } = startPlaying(manager);

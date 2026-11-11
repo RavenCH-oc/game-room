@@ -6,6 +6,11 @@ export interface ServerConfig {
   port: number;
   /** 兩邊到齊後，開始前倒數幾秒 */
   startCountdownSeconds: number;
+  /**
+   * 回合開始時只要有任何角色倒地離場中，這一回合改成幾秒（docs/web-v1.md 第 5 節）。
+   * 平常的回合秒數讀遊戲設定檔 games/ctf/core/config.ts
+   */
+  roundSecondsWhenSomeoneDown: number;
   /** 斷線後等幾秒，沒回來就判對手獲勝 */
   disconnectGraceSeconds: number;
   /** 比賽結束後幾分鐘沒人按按鈕就刪除房間 */
@@ -21,6 +26,7 @@ export interface ServerConfig {
 export const SERVER_CONFIG: ServerConfig = {
   port: 3000,
   startCountdownSeconds: 3,
+  roundSecondsWhenSomeoneDown: 1.5,
   disconnectGraceSeconds: 30,
   finishedRoomTtlMinutes: 5,
   maxRooms: 50,
