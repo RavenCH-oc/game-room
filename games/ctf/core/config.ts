@@ -28,10 +28,15 @@ export interface CtfConfig {
   regularMaxRounds: number;
   /** 延長賽回合上限 */
   overtimeMaxRounds: number;
+  /** 持旗者被打中（沒倒地也算）就掉旗（v0.3，做成開關方便比較） */
+  dropFlagWhenHit: boolean;
+  /**
+   * 旗子出現位置的順序（v0.3）：開場用第 1 個，
+   * 之後每得 1 分（不分哪一隊）換下一個，用完再從頭輪
+   */
+  flagSpawnOrder: Position[];
   /** 各隊重生點 */
   spawnPoints: Record<Team, Position>;
-  /** 旗子起點 */
-  flagStart: Position;
   /** 牆壁位置 */
   walls: Position[];
 }
@@ -49,11 +54,16 @@ export const CTF_CONFIG: CtfConfig = {
   flagReturnRounds: 2,
   regularMaxRounds: 200,
   overtimeMaxRounds: 50,
+  dropFlagWhenHit: true,
+  flagSpawnOrder: [
+    { x: 4, y: 4 }, // 中央
+    { x: 4, y: 2 }, // 上方
+    { x: 4, y: 6 }, // 下方
+  ],
   spawnPoints: {
     A: { x: 0, y: 4 },
     B: { x: 8, y: 4 },
   },
-  flagStart: { x: 4, y: 4 },
   walls: [
     { x: 2, y: 3 },
     { x: 2, y: 5 },

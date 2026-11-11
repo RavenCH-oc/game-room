@@ -94,6 +94,15 @@ export function createBoard(
         } else if (game.flag.status === 'onGround' && samePosition(game.flag.position, position)) {
           cell.appendChild(label('🚩', 'flag'));
         }
+        // 旗子等待重新出現：在下一次出現的格子上顯示淡淡的旗子和剩餘回合數
+        if (game.flag.status === 'returning' && samePosition(game.flag.nextPosition, position)) {
+          const preview = document.createElement('div');
+          preview.className = 'flag-preview';
+          preview.title = `旗子 ${game.flag.roundsLeft} 回合後出現在這裡`;
+          preview.appendChild(label('🚩', 'flag'));
+          preview.appendChild(label(String(game.flag.roundsLeft), 'flag-preview-rounds'));
+          cell.appendChild(preview);
+        }
       }
     }
   }

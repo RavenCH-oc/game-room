@@ -3,7 +3,7 @@
 import type { Action, GameEvent, GameResult, GameState, Team } from '../games/ctf/core/index.ts';
 
 /** 開房時選的對手 */
-export type OpponentKind = 'friend' | 'aiFlagRunner' | 'aiRandomWalker';
+export type OpponentKind = 'friend' | 'aiAttacker' | 'aiFlagRunner' | 'aiRandomWalker';
 
 /** 瀏覽器 → 伺服器 */
 export type ClientMessage =

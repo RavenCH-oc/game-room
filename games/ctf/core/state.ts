@@ -1,7 +1,13 @@
 // 開場的場面，以及給 AI 腳本看的場面。
 
 import { CTF_CONFIG, type CtfConfig } from './config.ts';
-import type { Character, CharacterView, GameState } from './types.ts';
+import type { Character, CharacterView, GameState, Position } from './types.ts';
+
+/** 第 n 次出現的旗子位置（n 從 0 開始；開場是第 0 次），照設定的順序輪流 */
+export function flagSpawnPosition(n: number, config: CtfConfig = CTF_CONFIG): Position {
+  const order = config.flagSpawnOrder;
+  return order[n % order.length]!;
+}
 
 /** 建立 1v1 開場：每隊一個角色站在自己的重生點、生命值全滿，旗子在起點 */
 export function createInitialState(config: CtfConfig = CTF_CONFIG): GameState {
@@ -29,7 +35,7 @@ export function createInitialState(config: CtfConfig = CTF_CONFIG): GameState {
     scores: { A: 0, B: 0 },
     knockdowns: { A: 0, B: 0 },
     characters,
-    flag: { status: 'onGround', position: { ...config.flagStart } },
+    flag: { status: 'onGround', position: { ...flagSpawnPosition(0, config) } },
     result: null,
   };
 }
