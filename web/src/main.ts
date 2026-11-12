@@ -365,9 +365,10 @@ function render(): void {
 /** 倒數條：每一格畫面更新一次 */
 function animateTimer(): void {
   let ratio = 0;
-  if (room?.phase === 'playing' && room.roundRemainingMs !== null) {
+  if (room?.phase === 'playing' && room.roundRemainingMs !== null && room.roundTotalMs) {
+    // 倒數條照伺服器告訴我們的「這回合實際總秒數」畫（有人倒地時比較短）
     const left = room.roundRemainingMs - (performance.now() - roomReceivedAt);
-    ratio = Math.max(0, Math.min(1, left / (CTF_CONFIG.roundSeconds * 1000)));
+    ratio = Math.max(0, Math.min(1, left / room.roundTotalMs));
   }
   timerFill.style.width = `${ratio * 100}%`;
   if (room?.phase === 'countdown' && room.countdownRemainingMs !== null) {

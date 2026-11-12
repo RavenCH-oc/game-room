@@ -67,6 +67,8 @@ interface Room {
   countdownEndsAt: number | null;
   roundTimer: Timer | null;
   roundEndsAt: number | null;
+  /** 這一回合的總長度（毫秒）：平常 3 秒，有人倒地時 1.5 秒 */
+  roundDurationMs: number | null;
   finishedTimer: Timer | null;
   result: MatchResult | null;
 }
@@ -201,6 +203,7 @@ export class RoomManager {
       countdownEndsAt: null,
       roundTimer: null,
       roundEndsAt: null,
+      roundDurationMs: null,
       finishedTimer: null,
       result: null,
     };
@@ -339,13 +342,24 @@ export class RoomManager {
 
   private startRound(room: Room, events?: GameEvent[]): void {
     room.pendingActions.clear();
-    const ms = this.ctfConfig.roundSeconds * 1000;
+    const ms = this.roundDurationMs(room);
+    room.roundDurationMs = ms;
     room.roundEndsAt = Date.now() + ms;
     room.roundTimer = setTimeout(() => {
       room.roundTimer = null;
       this.resolveCurrentRound(room);
     }, ms);
     this.broadcast(room, events);
+  }
+
+  /**
+   * 這一回合最長等多久：回合開始時只要有任何角色倒地離場中，改用比較短的秒數。
+   * 只改「最長等多久」，在場真人都送出就立刻結算的規則不變。
+   */
+  private roundDurationMs(room: Room): number {
+    const someoneDown = room.game?.characters.some((character) => character.position === null) ?? false;
+    const seconds = someoneDown ? this.config.roundSecondsWhenSomeoneDown : this.ctfConfig.roundSeconds;
+    return seconds * 1000;
   }
 
   private resolveCurrentRound(room: Room): void {
@@ -519,6 +533,7 @@ export class RoomManager {
     if (room.roundTimer) clearTimeout(room.roundTimer);
     room.roundTimer = null;
     room.roundEndsAt = null;
+    room.roundDurationMs = null;
   }
 
   private createHumanSeat(nickname: string, record: ConnectionRecord): Seat {
@@ -621,6 +636,7 @@ export class RoomManager {
       seats: { A: seatView(room.seats.A), B: seatView(room.seats.B) },
       countdownRemainingMs: room.countdownEndsAt === null ? null : Math.max(0, room.countdownEndsAt - now),
       roundRemainingMs: room.roundEndsAt === null ? null : Math.max(0, room.roundEndsAt - now),
+      roundTotalMs: room.roundDurationMs,
       game: room.game,
       yourAction: room.pendingActions.get(yourCharacterId) ?? null,
       opponentReady: opponentCharacterId !== null && room.pendingActions.has(opponentCharacterId),

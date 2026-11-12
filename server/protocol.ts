@@ -51,6 +51,8 @@ export interface RoomView {
   countdownRemainingMs: number | null;
   /** 這回合還剩幾毫秒（比賽中才有） */
   roundRemainingMs: number | null;
+  /** 這回合實際的總長度（毫秒）：平常 3000，有人倒地時 1500。倒數條照它畫（比賽中才有） */
+  roundTotalMs: number | null;
   /** 遊戲場面（倒數、比賽中、結束後才有） */
   game: GameState | null;
   /** 自己這回合目前選的動作 */
