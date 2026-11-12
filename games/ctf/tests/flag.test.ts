@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveRound, type GameState } from '../core/index.ts';
 import { dropFlag, makeState, move, positionOf, stay } from './helpers.ts';
 
-describe('第 4 節／第 5 節步驟 2、4、5：旗子', () => {
+describe('第 4 節／第 5 節步驟 1、3、4：旗子', () => {
   it('沒拿旗的角色走進旗子那格會自動撿起', () => {
     const state = makeState({ A1: { position: { x: 3, y: 4 } } });
     const { state: next, events } = resolveRound(state, { A1: move('right') });

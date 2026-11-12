@@ -23,6 +23,9 @@ export function describeEvent(event: GameEvent, myId: string): string | null {
   const who = (id: string): string => (id === myId ? '你' : '對手');
   switch (event.type) {
     case 'shot':
+      // v0.4：射擊在移動之後判定，所以可以「閃掉」，也可能「走進射擊線」
+      if (event.dodgedId) return `${who(event.dodgedId)}閃掉了${who(event.shooterId)}的子彈！`;
+      if (event.hitId && event.movedIntoLine) return `${who(event.hitId)}走進射擊線，被${who(event.shooterId)}打中`;
       return event.hitId ? null : `${who(event.shooterId)}往${DIRECTION_TEXT[event.direction]}開槍，沒打到人`;
     case 'damaged':
       return `${who(event.byId)}打中${who(event.characterId)}，${who(event.characterId)}剩 ${event.hpLeft} 點生命`;

@@ -131,8 +131,12 @@ function describeEvent(event: GameEvent): string | null {
   switch (event.type) {
     case 'invalidAction':
       return `${event.characterId} 的動作不合法（${event.reason}），當作不動`;
-    case 'shot':
-      return `${event.shooterId} 往 ${event.direction} 射擊${event.hitId ? `，打到 ${event.hitId}` : '，沒打到人'}`;
+    case 'shot': {
+      const base = `${event.shooterId} 往 ${event.direction} 射擊`;
+      if (event.dodgedId) return `${base}，${event.dodgedId} 閃掉了`;
+      if (event.hitId && event.movedIntoLine) return `${base}，${event.hitId} 走進射擊線被打到`;
+      return event.hitId ? `${base}，打到 ${event.hitId}` : `${base}，沒打到人`;
+    }
     case 'shotBlockedByInvulnerable':
       return `${event.targetId} 無敵中，沒有受傷`;
     case 'damaged':

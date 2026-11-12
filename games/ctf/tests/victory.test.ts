@@ -17,6 +17,20 @@ describe('第 6 節：正規賽', () => {
     expect(events).toContainEqual({ type: 'gameOver', result: { winner: 'A', reason: 'reachedWinningScore' } });
   });
 
+  it('v0.4：拿到第 3 分的那一回合，射擊仍然結算（整回合做完才判定勝負）', () => {
+    // A1 帶第 3 分回家，同回合被 B1 打倒：照樣獲勝，B 的擊倒數也加 1
+    const state = makeState({
+      A1: { position: { x: 1, y: 4 }, hp: 1 },
+      B1: { position: { x: 3, y: 4 } },
+      flag: { status: 'carried', carrierId: 'A1' },
+      scores: { A: 2, B: 0 },
+    });
+    const { state: next } = resolveRound(state, { A1: move('left'), B1: shoot('left') });
+    expect(next.result).toEqual({ winner: 'A', reason: 'reachedWinningScore' });
+    expect(next.knockdowns).toEqual({ A: 0, B: 1 });
+    expect(next.characters[0]!.position).toBeNull();
+  });
+
   it('2 分時得分還不算獲勝', () => {
     const state = makeState({ ...carrierNextToHome, scores: { A: 1, B: 0 } });
     const { state: next } = resolveRound(state, { A1: move('left') });
@@ -104,6 +118,18 @@ describe('第 6 節：延長賽', () => {
     });
     const { state: next } = resolveRound(state, { A1: shoot('right') });
     expect(next.result).toEqual({ winner: 'A', reason: 'overtimeKnockdown' });
+  });
+
+  it('同一回合一隊得分、另一隊打倒對方：得分優先（v0.4 起 1v1 也可能發生）', () => {
+    const state = makeState({
+      ...overtime,
+      A1: { position: { x: 1, y: 4 }, hp: 1 },
+      B1: { position: { x: 3, y: 4 } },
+      flag: { status: 'carried', carrierId: 'A1' },
+    });
+    const { state: next } = resolveRound(state, { A1: move('left'), B1: shoot('left') });
+    expect(next.characters[0]!.position).toBeNull(); // A1 被打倒了
+    expect(next.result).toEqual({ winner: 'A', reason: 'overtimeScore' });
   });
 
   it('只是打傷沒有打倒，延長賽繼續', () => {

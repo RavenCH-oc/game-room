@@ -72,7 +72,19 @@ export type ActionMap = Record<string, Action | undefined>;
 /** 這回合發生的事，給之後的畫面播動畫用 */
 export type GameEvent =
   | { type: 'invalidAction'; characterId: string; action: unknown; reason: string }
-  | { type: 'shot'; shooterId: string; direction: Direction; from: Position; hitId: string | null }
+  | {
+      type: 'shot';
+      shooterId: string;
+      direction: Direction;
+      from: Position;
+      /** 子彈停下的格子（打到人就是那人的格子；沒打到是射程盡頭或牆前） */
+      endPosition: Position;
+      hitId: string | null;
+      /** v0.4：回合開始時站在這條射擊線上、但移動後沒被打到的人（閃掉了） */
+      dodgedId: string | null;
+      /** v0.4：被打到的人回合開始時不在這條線上的第一個位置（走進射擊線） */
+      movedIntoLine: boolean;
+    }
   | { type: 'shotBlockedByInvulnerable'; shooterId: string; targetId: string }
   | { type: 'damaged'; characterId: string; byId: string; damage: number; hpLeft: number }
   | { type: 'knockedDown'; characterId: string; byIds: string[]; position: Position }

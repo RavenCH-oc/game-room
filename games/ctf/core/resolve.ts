@@ -1,4 +1,5 @@
-// 回合結算（規則第 4、5、6 節，v0.3）。
+// 回合結算（規則第 4、5、6 節，v0.4）。
+// v0.4 的順序：放旗 → 移動 → 撿旗 → 得分 → 射擊 → 重生倒數，整回合做完才判定勝負。
 // 純邏輯：不改傳進來的場面、不用隨機、不計時。同樣的輸入一定得到同樣的輸出。
 
 import {
@@ -64,15 +65,10 @@ export function resolveRound(
     chosenActions.set(character.id, action);
   }
 
-  // ── 步驟 1：射擊（扣生命值、倒地） ──
-  const { knockedDownIds, knockdownTeams } = resolveShooting(next, chosenActions, startPositions, config, events);
-
-  // ── 步驟 2：放下旗子 ──
+  // ── 步驟 1：放下旗子 ──
   for (const character of next.characters) {
-    if (!character.position || knockedDownIds.has(character.id)) continue;
+    if (!character.position) continue;
     if (chosenActions.get(character.id)?.type !== 'dropFlag') continue;
-    // 步驟 1 被打掉旗子的話，已經不是持旗者了，不用再放一次
-    if (next.flag.status !== 'carried' || next.flag.carrierId !== character.id) continue;
     next.flag = { status: 'onGround', position: { ...character.position } };
     events.push({
       type: 'flagDropped',
@@ -82,10 +78,10 @@ export function resolveRound(
     });
   }
 
-  // ── 步驟 3：移動 ──
-  const movedIds = resolveMovement(next, chosenActions, knockedDownIds, config, events);
+  // ── 步驟 2：移動 ──
+  const movedIds = resolveMovement(next, chosenActions, config, events);
 
-  // ── 步驟 4：撿旗 ──
+  // ── 步驟 3：撿旗 ──
   if (next.flag.status === 'onGround') {
     const flagPosition = next.flag.position;
     const picker = next.characters.find(
@@ -100,7 +96,7 @@ export function resolveRound(
     }
   }
 
-  // ── 步驟 5：得分 ──
+  // ── 步驟 4：得分（在射擊之前，所以子彈攔不下這一分） ──
   let scoredThisRound = false;
   let scoringTeam: Team | null = null;
   if (next.flag.status === 'carried') {
@@ -111,7 +107,7 @@ export function resolveRound(
       samePosition(carrier.position, config.spawnPoints[carrier.team])
     ) {
       next.scores[carrier.team] += 1;
-      // v0.3：下一次出現的位置照順序輪流。全場共用一個順序：
+      // 下一次出現的位置照順序輪流。全場共用一個順序：
       // 開場是第 0 次，第 n 次得分（兩隊加總）後是第 n 次
       const totalScores = next.scores.A + next.scores.B;
       next.flag = {
@@ -130,9 +126,13 @@ export function resolveRound(
     }
   }
 
+  // ── 步驟 5：射擊（v0.4：以移動之後的位置判定） ──
+  const { knockedDownIds, knockdownTeams } = resolveShooting(next, chosenActions, startPositions, config, events);
+
   // ── 步驟 6：重生與無敵倒數 ──
   resolveCountdowns(next, knockedDownIds, scoredThisRound, config, events);
 
+  // ── 六個步驟都做完，才判定勝負 ──
   // ── 勝負判定（規則第 6 節） ──
   next.round += 1;
   next.result = decideResult(next, scoringTeam, knockdownTeams, config);
@@ -194,7 +194,10 @@ interface ShootingOutcome {
   knockdownTeams: Set<Team>;
 }
 
-/** 步驟 1：以回合開始時的位置同時判定所有射擊，扣生命值，歸零就倒地 */
+/**
+ * 步驟 5：所有射擊同時發生，以「移動之後」的位置判定（v0.4），扣生命值，歸零就倒地。
+ * 開槍的人這回合沒有移動，從原地開槍。
+ */
 function resolveShooting(
   next: GameState,
   chosenActions: Map<string, Action>,
@@ -202,22 +205,34 @@ function resolveShooting(
   config: CtfConfig,
   events: GameEvent[],
 ): ShootingOutcome {
+  // 移動之後，在場角色現在的位置
+  const positionsNow = new Map<string, Position>();
+  for (const character of next.characters) {
+    if (character.position) positionsNow.set(character.id, { ...character.position });
+  }
+
   // 被打中的角色 id → 打中他的人（同一回合可能有好幾個）
   const hits = new Map<string, string[]>();
 
   for (const shooter of next.characters) {
     const action = chosenActions.get(shooter.id);
-    const from = startPositions.get(shooter.id);
+    const from = positionsNow.get(shooter.id);
     if (action?.type !== 'shoot' || !from) continue;
 
-    // 子彈停在路徑上第一個角色身上；無敵的角色也會擋下子彈（v0.2 補充）
-    const target = findFirstCharacterInLine(next, shooter.id, from, action.direction, startPositions, config);
+    // 子彈停在路徑上第一個角色身上；無敵的角色也會擋下子彈
+    const { character: target, endPosition } = traceBullet(next, shooter.id, from, action.direction, positionsNow, config);
+    // 給畫面用：回合開始時站在這條線上的人，如果現在沒被打到，就是「閃掉了」；
+    // 現在被打到的人，回合開始時不是這條線上的第一個人，就是「走進射擊線」
+    const atStart = traceBullet(next, shooter.id, from, action.direction, startPositions, config).character;
     events.push({
       type: 'shot',
       shooterId: shooter.id,
       direction: action.direction,
       from: { ...from },
+      endPosition,
       hitId: target?.id ?? null,
+      dodgedId: atStart && atStart.id !== target?.id ? atStart.id : null,
+      movedIntoLine: target !== null && atStart?.id !== target.id,
     });
     if (!target) continue;
 
@@ -240,12 +255,13 @@ function resolveShooting(
       target.hp = Math.max(0, target.hp - config.shotDamage);
       events.push({ type: 'damaged', characterId: targetId, byId: shooterId, damage: config.shotDamage, hpLeft: target.hp });
     }
-    const position = startPositions.get(targetId)!;
+    // 旗子掉在他「現在站的那一格」（移動之後）
+    const position = positionsNow.get(targetId)!;
+    // 這回合剛得分的人已經沒有旗子；剛撿起旗子的人算持旗者
     const isCarrier = next.flag.status === 'carried' && next.flag.carrierId === targetId;
 
     if (target.hp > 0) {
-      // v0.3：持旗者被打中但沒倒地，旗子也掉在他回合開始時的那一格（開關打開時）。
-      // 他這回合的動作照常執行
+      // 持旗者被打中但沒倒地，旗子也會掉（開關打開時）。撿旗步驟已經過了，下一回合才能撿
       if (isCarrier && config.dropFlagWhenHit) {
         next.flag = { status: 'onGround', position: { ...position } };
         events.push({ type: 'flagDropped', characterId: targetId, position: { ...position }, reason: 'hit' });
@@ -273,27 +289,32 @@ function resolveShooting(
   return { knockedDownIds, knockdownTeams };
 }
 
-/** 直線最遠 shootRange 格，回傳路徑上第一個角色；遇到牆壁或場外就停 */
-function findFirstCharacterInLine(
+/**
+ * 子彈的路徑：直線最遠 shootRange 格，停在路徑上第一個角色身上；遇到牆壁或場外就停。
+ * positions 決定「角色在哪裡」（判定用移動後的位置）。
+ * 回傳打到的角色，以及子彈停下的格子（給畫面畫線用）。
+ */
+function traceBullet(
   state: GameState,
   shooterId: string,
   from: Position,
   direction: Direction,
-  startPositions: Map<string, Position>,
+  positions: Map<string, Position>,
   config: CtfConfig,
-): Character | null {
+): { character: Character | null; endPosition: Position } {
   let cell = from;
   for (let distance = 1; distance <= config.shootRange; distance++) {
-    cell = step(cell, direction);
-    if (!isInsideBoard(cell, config) || isWall(cell, config)) return null;
+    const nextCell = step(cell, direction);
+    if (!isInsideBoard(nextCell, config) || isWall(nextCell, config)) break;
+    cell = nextCell;
     const found = state.characters.find((character) => {
       if (character.id === shooterId) return false;
-      const position = startPositions.get(character.id);
+      const position = positions.get(character.id);
       return position !== undefined && samePosition(position, cell);
     });
-    if (found) return found;
+    if (found) return { character: found, endPosition: { ...cell } };
   }
-  return null;
+  return { character: null, endPosition: { ...cell } };
 }
 
 interface MovePlan {
@@ -303,18 +324,17 @@ interface MovePlan {
   direction: Direction;
 }
 
-/** 步驟 3：所有移動同時發生，回傳這回合真的有移動的角色 id */
+/** 步驟 2：所有移動同時發生，回傳這回合真的有移動的角色 id */
 function resolveMovement(
   next: GameState,
   chosenActions: Map<string, Action>,
-  knockedDownIds: Set<string>,
   config: CtfConfig,
   events: GameEvent[],
 ): Set<string> {
   const plans: MovePlan[] = [];
 
   for (const character of next.characters) {
-    if (!character.position || knockedDownIds.has(character.id)) continue;
+    if (!character.position) continue;
     const action = chosenActions.get(character.id);
     if (action?.type !== 'move') continue;
 

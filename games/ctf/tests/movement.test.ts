@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveRound } from '../core/index.ts';
 import { FLAG_FAR_AWAY, makeState, move, positionOf, stay } from './helpers.ts';
 
-describe('第 4 節／第 5 節步驟 3：移動', () => {
+describe('第 4 節／第 5 節步驟 2：移動', () => {
   it('往上下左右走一格', () => {
     const state = makeState({ A1: { position: { x: 3, y: 2 } }, flag: FLAG_FAR_AWAY });
     expect(positionOf(resolveRound(state, { A1: move('up') }).state, 'A1')).toEqual({ x: 3, y: 1 });

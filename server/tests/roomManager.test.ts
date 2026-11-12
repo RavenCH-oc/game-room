@@ -298,7 +298,8 @@ describe('第 5 節：比賽中的回合', () => {
       ...CTF_CONFIG,
       maxHp: 1,
       spawnPoints: { A: { x: 3, y: 0 }, B: { x: 4, y: 0 } },
-      flagSpawnOrder: [{ x: 4, y: 8 }],
+      // 旗子放在左上角：攻擊 AI 會猜 A 往左走，A 一直在牠的射擊線上
+      flagSpawnOrder: [{ x: 0, y: 0 }],
     };
 
     it('有人倒地離場中的回合是 1.5 秒；所有人都在場的回合是 3 秒；重生後的下一回合回到 3 秒', () => {
