@@ -27,7 +27,7 @@ describe('第 7 節：設定檔', () => {
       boardWidth: 9,
       boardHeight: 9,
       roundSeconds: 3,
-      shootRange: 2,
+      shootRange: 3,
       maxHp: 3,
       shotDamage: 1,
       winningScore: 3,

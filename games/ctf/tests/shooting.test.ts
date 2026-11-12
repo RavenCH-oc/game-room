@@ -1,33 +1,37 @@
+// 規則第 5 節步驟 5（射擊）與第 9 節「射擊」「旗子」的測試。
+// v0.4：射擊在移動之後才判定，打的是大家「移動後」的位置；射程 3 格。
+
 import { describe, expect, it } from 'vitest';
 import { CTF_CONFIG, resolveRound, type GameState } from '../core/index.ts';
 import { FLAG_FAR_AWAY, dropFlag, hpOf, makeState, move, positionOf, shoot, stay } from './helpers.ts';
 
-describe('第 4 節／第 5 節步驟 1：射擊的命中範圍', () => {
-  it('距離 1 格命中', () => {
-    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 2, y: 0 } }, flag: FLAG_FAR_AWAY });
-    const { state: next, events } = resolveRound(state, { A1: shoot('right') });
-    expect(hpOf(next, 'B1')).toBe(2);
-    expect(events).toContainEqual(expect.objectContaining({ type: 'shot', shooterId: 'A1', hitId: 'B1' }));
+describe('第 9 節 射擊：命中範圍（射程 3 格）', () => {
+  it('距離 1、2、3 格都命中', () => {
+    for (const distance of [1, 2, 3]) {
+      const state = makeState({
+        A1: { position: { x: 1, y: 0 } },
+        B1: { position: { x: 1 + distance, y: 0 } },
+        flag: FLAG_FAR_AWAY,
+      });
+      const { state: next, events } = resolveRound(state, { A1: shoot('right') });
+      expect(hpOf(next, 'B1')).toBe(2);
+      expect(events).toContainEqual(expect.objectContaining({ type: 'shot', shooterId: 'A1', hitId: 'B1' }));
+    }
   });
 
-  it('距離 2 格命中', () => {
-    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 3, y: 0 } }, flag: FLAG_FAR_AWAY });
-    const { state: next } = resolveRound(state, { A1: shoot('right') });
-    expect(hpOf(next, 'B1')).toBe(2);
-  });
-
-  it('距離 3 格打不到', () => {
-    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 4, y: 0 } }, flag: FLAG_FAR_AWAY });
+  it('距離 4 格打不到', () => {
+    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 5, y: 0 } }, flag: FLAG_FAR_AWAY });
     const { state: next, events } = resolveRound(state, { A1: shoot('right') });
     expect(hpOf(next, 'B1')).toBe(3);
-    expect(events).toContainEqual(expect.objectContaining({ type: 'shot', shooterId: 'A1', hitId: null }));
+    expect(events).toContainEqual(expect.objectContaining({ type: 'shot', hitId: null, endPosition: { x: 4, y: 0 } }));
   });
 
   it('牆壁擋住射擊', () => {
     // (4, 1) 是牆，A1 在 (4, 0) 往下射，B1 在 (4, 2)
     const state = makeState({ A1: { position: { x: 4, y: 0 } }, B1: { position: { x: 4, y: 2 } }, flag: FLAG_FAR_AWAY });
-    const { state: next } = resolveRound(state, { A1: shoot('down') });
+    const { state: next, events } = resolveRound(state, { A1: shoot('down') });
     expect(hpOf(next, 'B1')).toBe(3);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'shot', hitId: null, endPosition: { x: 4, y: 0 } }));
   });
 
   it('只打中路徑上第一個角色', () => {
@@ -43,7 +47,7 @@ describe('第 4 節／第 5 節步驟 1：射擊的命中範圍', () => {
     expect(hpOf(next, 'B2')).toBe(3);
   });
 
-  it('v0.2 補充：重生點和地上的旗子不會擋住射擊', () => {
+  it('重生點和地上的旗子不會擋住射擊', () => {
     // 子彈穿過地上的旗子 (4, 4)
     const throughFlag = makeState({
       A1: { position: { x: 3, y: 4 } },
@@ -61,25 +65,76 @@ describe('第 4 節／第 5 節步驟 1：射擊的命中範圍', () => {
     expect(hpOf(resolveRound(throughSpawn, { B1: shoot('down') }).state, 'A1')).toBe(2);
   });
 
-  it('射擊以回合開始時的位置判定：目標同回合走開也會被打中', () => {
-    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 3, y: 0 } }, flag: FLAG_FAR_AWAY });
-    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: move('right') });
-    expect(hpOf(next, 'B1')).toBe(2);
+  it('沒打中人的射擊不影響任何人', () => {
+    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 1, y: 8 } }, flag: FLAG_FAR_AWAY });
+    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: stay });
+    expect(hpOf(next, 'B1')).toBe(3);
   });
 });
 
-describe('第 5 節步驟 1：生命值與倒地', () => {
+describe('第 9 節 射擊：以移動後的位置判定（v0.4）', () => {
+  it('目標這回合走出射擊線：打不到（閃掉了）', () => {
+    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 3, y: 0 } }, flag: FLAG_FAR_AWAY });
+    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('down') });
+    expect(positionOf(next, 'B1')).toEqual({ x: 3, y: 1 });
+    expect(hpOf(next, 'B1')).toBe(3);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'shot', hitId: null, dodgedId: 'B1' }));
+  });
+
+  it('目標這回合走進射擊線：被打到', () => {
+    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 3, y: 1 } }, flag: FLAG_FAR_AWAY });
+    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('up') });
+    expect(positionOf(next, 'B1')).toEqual({ x: 3, y: 0 });
+    expect(hpOf(next, 'B1')).toBe(2);
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'shot', hitId: 'B1', dodgedId: null, movedIntoLine: true }),
+    );
+  });
+
+  it('一直站在射擊線上被打到：不算「走進射擊線」', () => {
+    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 3, y: 0 } }, flag: FLAG_FAR_AWAY });
+    const { events } = resolveRound(state, { A1: shoot('right'), B1: stay });
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'shot', hitId: 'B1', dodgedId: null, movedIntoLine: false }),
+    );
+  });
+
+  it('目標沿著射擊線後退，移動後剛好超出射程：打不到', () => {
+    // B1 從 (4, 0) 退到 (5, 0)，距離 A1 變成 4 格
+    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 4, y: 0 } }, flag: FLAG_FAR_AWAY });
+    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: move('right') });
+    expect(positionOf(next, 'B1')).toEqual({ x: 5, y: 0 });
+    expect(hpOf(next, 'B1')).toBe(3);
+  });
+
+  it('目標沿著射擊線後退，移動後還在射程內：被打到', () => {
+    // B1 從 (3, 0) 退到 (4, 0)，距離 A1 是 3 格
+    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 3, y: 0 } }, flag: FLAG_FAR_AWAY });
+    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: move('right') });
+    expect(positionOf(next, 'B1')).toEqual({ x: 4, y: 0 });
+    expect(hpOf(next, 'B1')).toBe(2);
+  });
+
+  it('開槍的人從原地開槍', () => {
+    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 4, y: 0 } }, flag: FLAG_FAR_AWAY });
+    const { state: next, events } = resolveRound(state, { A1: shoot('right') });
+    expect(positionOf(next, 'A1')).toEqual({ x: 1, y: 0 });
+    expect(events).toContainEqual(expect.objectContaining({ type: 'shot', from: { x: 1, y: 0 } }));
+  });
+});
+
+describe('第 9 節 射擊：生命值與倒地', () => {
   it('開場每個角色有 3 點生命值', () => {
     const state = makeState();
     expect(hpOf(state, 'A1')).toBe(3);
     expect(hpOf(state, 'B1')).toBe(3);
   });
 
-  it('被打中扣 1 點且留在場上，這回合的動作照常執行', () => {
+  it('被打中扣 1 點且留在場上', () => {
     const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 3, y: 0 } }, flag: FLAG_FAR_AWAY });
-    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('down') });
+    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: stay });
     expect(hpOf(next, 'B1')).toBe(2);
-    expect(positionOf(next, 'B1')).toEqual({ x: 3, y: 1 });
+    expect(positionOf(next, 'B1')).toEqual({ x: 3, y: 0 });
     expect(events).toContainEqual({ type: 'damaged', characterId: 'B1', byId: 'A1', damage: 1, hpLeft: 2 });
     expect(events.some((event) => event.type === 'knockedDown')).toBe(false);
   });
@@ -147,49 +202,21 @@ describe('第 5 節步驟 1：生命值與倒地', () => {
     expect(events.filter((event) => event.type === 'knockedDown')).toHaveLength(2);
   });
 
-  it('倒地的角色這回合的移動取消', () => {
+  it('倒地的角色同回合的移動先發生（移動在射擊之前），倒地後離場', () => {
+    // B1 只剩 1 點，往下走一格，剛好走進 A1 的射擊線 (1, 0)→往下
     const state = makeState({
-      A1: { position: { x: 1, y: 0 } },
-      B1: { position: { x: 3, y: 0 }, hp: 1 },
+      A1: { position: { x: 1, y: 3 } },
+      B1: { position: { x: 1, y: 0 }, hp: 1 },
       flag: FLAG_FAR_AWAY,
     });
-    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('down') });
+    const { state: next, events } = resolveRound(state, { A1: shoot('up'), B1: move('down') });
+    expect(events).toContainEqual(expect.objectContaining({ type: 'moved', characterId: 'B1', to: { x: 1, y: 1 } }));
+    expect(events).toContainEqual(expect.objectContaining({ type: 'knockedDown', characterId: 'B1', position: { x: 1, y: 1 } }));
     expect(positionOf(next, 'B1')).toBeNull();
-    expect(events.some((event) => event.type === 'moved' && event.characterId === 'B1')).toBe(false);
-  });
-
-  it('倒地的角色同回合的射擊仍然有效', () => {
-    const state = makeState({
-      A1: { position: { x: 1, y: 0 } },
-      B1: { position: { x: 3, y: 0 }, hp: 1 },
-      flag: FLAG_FAR_AWAY,
-    });
-    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: shoot('left') });
-    expect(positionOf(next, 'B1')).toBeNull();
-    expect(hpOf(next, 'A1')).toBe(2);
-  });
-
-  it('v0.2 補充：這回合剛倒地的角色原本的格子可以走進去', () => {
-    // A2 打倒 B1 (3, 0)，同回合 A1 從 (2, 0) 走進 (3, 0)
-    const state = makeState({
-      A1: { position: { x: 2, y: 0 } },
-      B1: { position: { x: 3, y: 0 }, hp: 1 },
-      extra: [{ id: 'A2', team: 'A', position: { x: 5, y: 0 } }],
-      flag: FLAG_FAR_AWAY,
-    });
-    const { state: next } = resolveRound(state, { A1: move('right'), A2: shoot('left') });
-    expect(positionOf(next, 'B1')).toBeNull();
-    expect(positionOf(next, 'A1')).toEqual({ x: 3, y: 0 });
-  });
-
-  it('沒打中人的射擊不影響任何人', () => {
-    const state = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 1, y: 8 } }, flag: FLAG_FAR_AWAY });
-    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: stay });
-    expect(hpOf(next, 'B1')).toBe(3);
   });
 });
 
-describe('第 4 節／第 5 節步驟 1：持旗者與射擊', () => {
+describe('第 9 節 射擊：持旗者不能射擊', () => {
   it('持旗者射擊被當作不動', () => {
     const state = makeState({
       A1: { position: { x: 1, y: 0 } },
@@ -202,16 +229,19 @@ describe('第 4 節／第 5 節步驟 1：持旗者與射擊', () => {
     expect(events.some((event) => event.type === 'shot')).toBe(false);
     expect(events).toContainEqual(expect.objectContaining({ type: 'invalidAction', characterId: 'A1' }));
   });
+});
 
-  it('v0.3：持旗者被打中但沒倒地，旗子掉在他回合開始時的那一格，他這回合的移動照常執行', () => {
+describe('第 9 節 旗子：持旗者被打中', () => {
+  it('持旗者被打中但沒倒地：旗子掉在他移動後站的那一格', () => {
+    // B1 拿著旗從 (3, 1) 往上走到 (3, 0)，走進 A1 的射擊線
     const state = makeState({
       A1: { position: { x: 1, y: 0 } },
-      B1: { position: { x: 3, y: 0 } },
+      B1: { position: { x: 3, y: 1 } },
       flag: { status: 'carried', carrierId: 'B1' },
     });
-    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('down') });
+    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('up') });
     expect(hpOf(next, 'B1')).toBe(2);
-    expect(positionOf(next, 'B1')).toEqual({ x: 3, y: 1 });
+    expect(positionOf(next, 'B1')).toEqual({ x: 3, y: 0 });
     expect(next.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
     expect(events).toContainEqual({ type: 'flagDropped', characterId: 'B1', position: { x: 3, y: 0 }, reason: 'hit' });
   });
@@ -223,81 +253,103 @@ describe('第 4 節／第 5 節步驟 1：持旗者與射擊', () => {
       B1: { position: { x: 3, y: 0 } },
       flag: { status: 'carried', carrierId: 'B1' },
     });
-    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: move('down') }, config);
+    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: stay }, config);
     expect(hpOf(next, 'B1')).toBe(2);
     expect(next.flag).toEqual({ status: 'carried', carrierId: 'B1' });
-    expect(positionOf(next, 'B1')).toEqual({ x: 3, y: 1 });
   });
 
-  it('v0.3：被打掉的旗子，同一回合可以被走進那一格的對手撿起', () => {
-    // A1 打掉 B1 的旗子；B1 往下走開；A2 同回合從左邊走進 (3, 0) 撿起
+  it('同一回合剛撿起旗子就被打中：旗子掉在那一格', () => {
+    // 旗子在 (3, 0)；B1 從 (3, 1) 往上走進去撿起，同回合被 A1 打中
     const state = makeState({
-      A1: { position: { x: 5, y: 0 } },
-      B1: { position: { x: 3, y: 0 } },
+      A1: { position: { x: 1, y: 0 } },
+      B1: { position: { x: 3, y: 1 } },
+      flag: { status: 'onGround', position: { x: 3, y: 0 } },
+    });
+    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('up') });
+    expect(events).toContainEqual(expect.objectContaining({ type: 'flagPickedUp', characterId: 'B1' }));
+    expect(events).toContainEqual(expect.objectContaining({ type: 'flagDropped', characterId: 'B1', reason: 'hit' }));
+    expect(next.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
+  });
+
+  it('這回合被打掉的旗子，同回合不會被任何人撿起；下一回合走進那格的人可以撿', () => {
+    // 第 1 回合：B1 拿旗從 (3, 1) 走到 (3, 0)，被 A1 從 (3, 3) 往上打中（距離 3），旗子掉在 (3, 0)
+    let state: GameState = makeState({
+      A1: { position: { x: 3, y: 3 } },
+      B1: { position: { x: 3, y: 1 } },
       extra: [{ id: 'A2', team: 'A', position: { x: 2, y: 0 } }],
       flag: { status: 'carried', carrierId: 'B1' },
     });
-    const { state: next, events } = resolveRound(state, { A1: shoot('left'), B1: move('down'), A2: move('right') });
-    expect(next.flag).toEqual({ status: 'carried', carrierId: 'A2' });
-    expect(events).toContainEqual(expect.objectContaining({ type: 'flagPickedUp', characterId: 'A2' }));
+    const first = resolveRound(state, { A1: shoot('up'), B1: move('up'), A2: stay });
+    state = first.state;
+    expect(state.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
+    expect(first.events.some((event) => event.type === 'flagPickedUp')).toBe(false);
+
+    // 第 2 回合：B1 往下離開，A2 從左邊走進 (3, 0)，撿起旗子
+    const second = resolveRound(state, { B1: move('down'), A2: move('right') });
+    expect(second.state.flag).toEqual({ status: 'carried', carrierId: 'A2' });
   });
 
-  it('v0.3：被打掉旗子的人還站在那一格，不會自動撿回', () => {
-    const state = makeState({
+  it('被打掉旗子的人還站在那一格，不會自動撿回', () => {
+    let state: GameState = makeState({
       A1: { position: { x: 1, y: 0 } },
       B1: { position: { x: 3, y: 0 } },
       flag: { status: 'carried', carrierId: 'B1' },
     });
-    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: stay });
-    expect(next.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
+    state = resolveRound(state, { A1: shoot('right'), B1: stay }).state;
+    expect(state.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
+    state = resolveRound(state, { B1: stay }).state;
+    expect(state.flag.status).toBe('onGround');
   });
 
-  it('v0.3：持旗者被打中時選了放旗，旗子只掉一次', () => {
-    const state = makeState({
-      A1: { position: { x: 1, y: 0 } },
-      B1: { position: { x: 3, y: 0 } },
-      flag: { status: 'carried', carrierId: 'B1' },
-    });
-    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: dropFlag });
-    expect(next.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
-    expect(events.filter((event) => event.type === 'flagDropped')).toEqual([expect.objectContaining({ reason: 'hit' })]);
-  });
-
-  it('v0.3：無敵中的持旗者被射擊不會掉旗', () => {
+  it('無敵中的持旗者被射擊不會掉旗', () => {
     const state = makeState({
       A1: { position: { x: 1, y: 0 } },
       B1: { position: { x: 3, y: 0 }, invulnerableRoundsLeft: 2 },
       flag: { status: 'carried', carrierId: 'B1' },
     });
-    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: move('down') });
+    const { state: next } = resolveRound(state, { A1: shoot('right'), B1: stay });
     expect(hpOf(next, 'B1')).toBe(3);
     expect(next.flag).toEqual({ status: 'carried', carrierId: 'B1' });
   });
 
-  it('持旗者倒地：旗子掉在他原本的格子', () => {
-    // B1 拿旗在 (3, 0)，只剩 1 點，同回合想往右走
+  it('持旗者倒地：旗子掉在他現在站的那一格', () => {
+    // B1 只剩 1 點，拿旗從 (3, 1) 走到 (3, 0) 被打倒
     const state = makeState({
       A1: { position: { x: 1, y: 0 } },
-      B1: { position: { x: 3, y: 0 }, hp: 1 },
+      B1: { position: { x: 3, y: 1 }, hp: 1 },
       flag: { status: 'carried', carrierId: 'B1' },
     });
-    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('right') });
+    const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: move('up') });
+    expect(positionOf(next, 'B1')).toBeNull();
     expect(next.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
-    expect(events).toContainEqual(
-      expect.objectContaining({ type: 'flagDropped', characterId: 'B1', reason: 'knockedDown' }),
-    );
+    expect(events).toContainEqual(expect.objectContaining({ type: 'flagDropped', characterId: 'B1', reason: 'knockedDown' }));
   });
 
-  it('持旗者倒地時選的放旗也取消，旗子仍掉在原地', () => {
+  it('同回合先放下旗子再被打中：旗子只掉一次（放旗在射擊之前）', () => {
     const state = makeState({
       A1: { position: { x: 1, y: 0 } },
-      B1: { position: { x: 3, y: 0 }, hp: 1 },
+      B1: { position: { x: 3, y: 0 } },
       flag: { status: 'carried', carrierId: 'B1' },
     });
     const { state: next, events } = resolveRound(state, { A1: shoot('right'), B1: dropFlag });
     expect(next.flag).toEqual({ status: 'onGround', position: { x: 3, y: 0 } });
+    expect(hpOf(next, 'B1')).toBe(2);
     expect(events.filter((event) => event.type === 'flagDropped')).toEqual([
-      expect.objectContaining({ reason: 'knockedDown' }),
+      expect.objectContaining({ reason: 'dropped' }),
     ]);
+  });
+
+  it('帶旗踏進自己重生點的那一回合被射擊：照樣得分，另外扣生命值', () => {
+    // A1 拿旗從 (1, 4) 走進自己家 (0, 4)；B1 在 (2, 4) 往左射，打到移動後的 A1
+    const state = makeState({
+      A1: { position: { x: 1, y: 4 } },
+      B1: { position: { x: 2, y: 4 } },
+      flag: { status: 'carried', carrierId: 'A1' },
+    });
+    const { state: next, events } = resolveRound(state, { A1: move('left'), B1: shoot('left') });
+    expect(next.scores.A).toBe(1);
+    expect(hpOf(next, 'A1')).toBe(2);
+    expect(next.flag.status).toBe('returning');
+    expect(events.some((event) => event.type === 'flagDropped')).toBe(false);
   });
 });

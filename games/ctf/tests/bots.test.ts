@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createAttacker } from '../bots/attacker.ts';
+import { createAttacker, predictNextPosition } from '../bots/attacker.ts';
 import { createFlagRunner } from '../bots/flagRunner.ts';
 import { createInitialState, getCharacterView, resolveRound, type GameState } from '../core/index.ts';
 import { FLAG_FAR_AWAY, makeState } from './helpers.ts';
@@ -8,13 +8,26 @@ const attacker = createAttacker();
 const flagRunner = createFlagRunner();
 const decide = (bot: typeof attacker, state: GameState, id = 'A1') => bot(getCharacterView(state, id));
 
-describe('第 8 節：攻擊型 AI（v0.3）', () => {
-  it('對手在射擊線上（同一直線、射程內）會射擊', () => {
-    const right = makeState({ A1: { position: { x: 1, y: 0 } }, B1: { position: { x: 3, y: 0 } }, flag: FLAG_FAR_AWAY });
-    expect(decide(attacker, right)).toEqual({ type: 'shoot', direction: 'right' });
+describe('第 8 節：攻擊型 AI（v0.4 會預判）', () => {
+  it('對手下一步會走進射擊線時會射擊', () => {
+    // B1 在 (5, 2) 往旗子 (5, 4) 走，猜他走到 (5, 3)；A1 在 (5, 6) 往上 3 格剛好打得到
+    // （B1 現在的位置離 A1 有 4 格，不在射程內）
+    const state = makeState({
+      A1: { position: { x: 5, y: 6 } },
+      B1: { position: { x: 5, y: 2 } },
+      flag: { status: 'onGround', position: { x: 5, y: 4 } },
+    });
+    expect(decide(attacker, state)).toEqual({ type: 'shoot', direction: 'up' });
+  });
 
-    const below = makeState({ A1: { position: { x: 0, y: 0 } }, B1: { position: { x: 0, y: 1 } }, flag: FLAG_FAR_AWAY });
-    expect(decide(attacker, below)).toEqual({ type: 'shoot', direction: 'down' });
+  it('對手下一步會走出射擊線時不射擊', () => {
+    // B1 現在就在 A1 的射擊線上 (3, 0)，但他會往下走向旗子 (3, 4)，猜他走到 (3, 1)
+    const state = makeState({
+      A1: { position: { x: 1, y: 0 } },
+      B1: { position: { x: 3, y: 0 } },
+      flag: { status: 'onGround', position: { x: 3, y: 4 } },
+    });
+    expect(decide(attacker, state).type).not.toBe('shoot');
   });
 
   it('拿著旗時不射擊、往家走', () => {
@@ -27,14 +40,56 @@ describe('第 8 節：攻擊型 AI（v0.3）', () => {
     expect(decide(attacker, state)).toEqual({ type: 'move', direction: 'left' });
   });
 
-  it('對手超出射程（3 格）不射擊', () => {
-    const state = makeState({ A1: { position: { x: 0, y: 0 } }, B1: { position: { x: 3, y: 0 } }, flag: FLAG_FAR_AWAY });
+  it('猜法：對手拿著旗，猜他照最短路往他家走一步', () => {
+    // B1 拿旗在 (6, 0)，往家 (8, 4) 的第一步猜 (6, 1)；A1 在 (8, 1) 往左 2 格打得到
+    const state = makeState({
+      A1: { position: { x: 8, y: 1 } },
+      B1: { position: { x: 6, y: 0 } },
+      flag: { status: 'carried', carrierId: 'B1' },
+    });
+    expect(predictNextPosition(state, state.characters[1]!, { x: 8, y: 1 })).toEqual({ x: 6, y: 1 });
+    expect(decide(attacker, state)).toEqual({ type: 'shoot', direction: 'left' });
+  });
+
+  it('猜法：旗子等待重新出現，猜他往預告位置走一步', () => {
+    // B1 在 (4, 0)，預告位置 (4, 2)，(4, 1) 是牆，猜他先往左到 (3, 0)；A1 在 (3, 3) 往上 3 格
+    const state = makeState({
+      A1: { position: { x: 3, y: 3 } },
+      B1: { position: { x: 4, y: 0 } },
+      flag: { status: 'returning', roundsLeft: 2, nextPosition: { x: 4, y: 2 } },
+    });
+    expect(predictNextPosition(state, state.characters[1]!, { x: 3, y: 3 })).toEqual({ x: 3, y: 0 });
+    expect(decide(attacker, state)).toEqual({ type: 'shoot', direction: 'up' });
+  });
+
+  it('猜法：猜的那一格是自己站的位置，改猜他不動', () => {
+    // 旗子在 (1, 0)，B1 在 (3, 0) 往旗子走的第一步是 (2, 0)，但那是 A1 站的地方 → 猜他不動
+    const state = makeState({
+      A1: { position: { x: 2, y: 0 } },
+      B1: { position: { x: 3, y: 0 } },
+      flag: { status: 'onGround', position: { x: 1, y: 0 } },
+    });
+    expect(predictNextPosition(state, state.characters[1]!, { x: 2, y: 0 })).toEqual({ x: 3, y: 0 });
+    expect(decide(attacker, state)).toEqual({ type: 'shoot', direction: 'right' });
+  });
+
+  it('猜的位置超出射程（4 格）不射擊', () => {
+    // B1 往旗子 (4, 0) 走，猜他到 (4, 0)，離 A1 (0, 0) 有 4 格
+    const state = makeState({
+      A1: { position: { x: 0, y: 0 } },
+      B1: { position: { x: 5, y: 0 } },
+      flag: { status: 'onGround', position: { x: 4, y: 0 } },
+    });
     expect(decide(attacker, state).type).not.toBe('shoot');
   });
 
   it('中間有牆不射擊', () => {
-    // (4, 1) 是牆
-    const state = makeState({ A1: { position: { x: 4, y: 0 } }, B1: { position: { x: 4, y: 2 } }, flag: FLAG_FAR_AWAY });
+    // 猜 B1 走到 (4, 3)，但 A1 (4, 0) 往下有牆 (4, 1)
+    const state = makeState({
+      A1: { position: { x: 4, y: 0 } },
+      B1: { position: { x: 4, y: 2 } },
+      flag: { status: 'onGround', position: { x: 4, y: 3 } },
+    });
     expect(decide(attacker, state).type).not.toBe('shoot');
   });
 
@@ -52,7 +107,7 @@ describe('第 8 節：攻擊型 AI（v0.3）', () => {
     expect(decide(attacker, state)).toEqual({ type: 'move', direction: 'right' });
   });
 
-  it('旗子在對手手上（不在射擊線上）：走最短路追他', () => {
+  it('旗子在對手手上（猜的位置不在射擊線上）：走最短路追他', () => {
     const state = makeState({
       A1: { position: { x: 0, y: 0 } },
       B1: { position: { x: 0, y: 6 } },

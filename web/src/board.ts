@@ -112,8 +112,8 @@ export function createBoard(
     for (const event of events) {
       if (event.type !== 'shot') continue;
       const shooter = previous.characters.find((character) => character.id === event.shooterId);
-      const target = event.hitId ? previous.characters.find((character) => character.id === event.hitId) : null;
-      const end = target?.position ?? lastCellInLine(event.from, event.direction);
+      // v0.4：射擊在移動之後判定，子彈停在哪一格由遊戲核心算好放在事件裡
+      const end = event.endPosition;
       const line = document.createElementNS(SVG_NS, 'line');
       line.setAttribute('x1', String(event.from.x + 0.5));
       line.setAttribute('y1', String(event.from.y + 0.5));
@@ -168,17 +168,6 @@ function lineCells(position: Position): Position[] {
     }
   }
   return result;
-}
-
-/** 沒打到人時，子彈線畫到射程盡頭或牆前 */
-function lastCellInLine(from: Position, direction: Direction): Position {
-  let cell = from;
-  for (let distance = 1; distance <= config.shootRange; distance++) {
-    const next = step(cell, direction);
-    if (!isInsideBoard(next, config) || isWall(next, config)) break;
-    cell = next;
-  }
-  return cell;
 }
 
 /** 點到的格子在自己的哪個方向（同一行或同一列才算） */
