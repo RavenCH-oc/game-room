@@ -1,6 +1,6 @@
 // 網頁的主程式：大廳、等待、比賽、結束畫面的切換與操作。
 
-import { CTF_CONFIG, type Action, type Direction, type GameEvent, type GameState, type Position } from '../../games/ctf/core/index.ts';
+import { CTF_CONFIG, type Action, type Direction, type GameEvent, type Position, type PublicGameState } from '../../games/ctf/core/index.ts';
 import type { OpponentKind, RoomView, ServerMessage } from '../../server/protocol.ts';
 import { createBoard, directionTowards } from './board.ts';
 import { connect } from './connection.ts';
@@ -37,7 +37,7 @@ let room: RoomView | null = null;
 /** 收到 room 訊息時的時間，用來推算倒數條 */
 let roomReceivedAt = 0;
 /** 上一次畫面上的場面，用來畫射擊線 */
-let previousGame: GameState | null = null;
+let previousGame: PublicGameState | null = null;
 let shootMode = false;
 let flashIds = new Set<string>();
 let logLines: string[] = [];
@@ -297,6 +297,17 @@ function render(): void {
     flashIds,
   });
 
+  // v0.5：旗子隱藏、預告中的提示（在場地上方）
+  const flagStatus = $('flag-status');
+  const flagText =
+    game.flag.status === 'hidden'
+      ? `旗子還沒出現，${game.flag.roundsLeft} 回合後公布位置`
+      : game.flag.status === 'announced'
+        ? `旗子 ${game.flag.roundsLeft} 回合後出現`
+        : '';
+  flagStatus.textContent = flagText;
+  flagStatus.hidden = flagText === '' || room.phase === 'finished';
+
   // 倒數
   const countdown = $('countdown-overlay');
   if (room.phase === 'countdown' && room.countdownRemainingMs !== null) {
@@ -349,6 +360,8 @@ function render(): void {
     $('finished-title').textContent = title;
     $('finished-reason').textContent = `結束原因：${reason}`;
     $('finished-stats').textContent = `分數 ${game.scores.A} : ${game.scores.B} · 擊倒數 ${game.knockdowns.A} : ${game.knockdowns.B}（藍 : 紅）`;
+    // v0.5：結束畫面顯示這一場的種子，方便之後用對打指令或測試重現
+    $('finished-seed').textContent = room.seed === null ? '' : `這一場的種子：${room.seed}`;
     const mySeat = room.seats[room.yourTeam];
     let rematchText = '';
     if (opponentSeat?.left) rematchText = '對手已經離開房間。';

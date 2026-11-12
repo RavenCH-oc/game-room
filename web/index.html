@@ -70,6 +70,9 @@
 
       <div class="timer"><div id="timer-fill" class="timer-fill"></div></div>
 
+      <!-- v0.5：旗子隱藏、預告中的提示 -->
+      <p id="flag-status" class="flag-status" role="status" hidden></p>
+
       <div class="board-wrap">
         <div id="board" class="board"></div>
         <svg id="shot-layer" class="shot-layer" viewBox="0 0 9 9" preserveAspectRatio="none"></svg>
@@ -96,6 +99,7 @@
           <h2 id="finished-title"></h2>
           <p id="finished-reason"></p>
           <p id="finished-stats"></p>
+          <p id="finished-seed" class="muted seed"></p>
           <p id="rematch-status" class="muted"></p>
           <div class="controls">
             <button id="rematch-button" class="primary">再來一場</button>

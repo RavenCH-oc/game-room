@@ -22,23 +22,33 @@ export interface CtfConfig {
   knockedDownRounds: number;
   /** 重生後無敵回合數 */
   invulnerableRounds: number;
-  /** 旗子重生等待回合數 */
-  flagReturnRounds: number;
+  /** 旗子「隱藏」階段的回合數（v0.5）。0 表示跳過隱藏，直接抽位置進入預告 */
+  flagHiddenRounds: number;
+  /** 旗子「預告」階段的回合數（v0.5）。0 表示跳過預告，隱藏結束就直接出現 */
+  flagAnnounceRounds: number;
   /** 正規賽回合上限 */
   regularMaxRounds: number;
   /** 延長賽回合上限 */
   overtimeMaxRounds: number;
   /** 持旗者被打中（沒倒地也算）就掉旗（v0.3，做成開關方便比較） */
   dropFlagWhenHit: boolean;
-  /**
-   * 旗子出現位置的順序（v0.3）：開場用第 1 個，
-   * 之後每得 1 分（不分哪一隊）換下一個，用完再從頭輪
-   */
-  flagSpawnOrder: Position[];
+  /** 得分後重新開局（v0.5，開關）：有人得分的那一回合，射擊結算完所有角色回到重生點、生命補滿 */
+  resetOnScore: boolean;
+  /** 範例 AI 的機率（v0.5，規則第 7、8 節），0 到 1 */
+  bots: BotChances;
   /** 各隊重生點 */
   spawnPoints: Record<Team, Position>;
   /** 牆壁位置 */
   walls: Position[];
+}
+
+export interface BotChances {
+  /** 攻擊型：改打「對手現在位置」的機率（其餘打「猜對手會走到的那一格」） */
+  attackerAimAtCurrentChance: number;
+  /** 攻擊型：這回合不考慮開槍的機率 */
+  attackerSkipShootingChance: number;
+  /** 搶旗：這回合不動的機率（拿著旗時不用） */
+  flagRunnerStayChance: number;
 }
 
 export const CTF_CONFIG: CtfConfig = {
@@ -51,15 +61,17 @@ export const CTF_CONFIG: CtfConfig = {
   winningScore: 3,
   knockedDownRounds: 2,
   invulnerableRounds: 2,
-  flagReturnRounds: 2,
+  flagHiddenRounds: 2,
+  flagAnnounceRounds: 2,
   regularMaxRounds: 200,
   overtimeMaxRounds: 50,
   dropFlagWhenHit: true,
-  flagSpawnOrder: [
-    { x: 4, y: 4 }, // 中央
-    { x: 4, y: 2 }, // 上方
-    { x: 4, y: 6 }, // 下方
-  ],
+  resetOnScore: false,
+  bots: {
+    attackerAimAtCurrentChance: 0.25,
+    attackerSkipShootingChance: 0.15,
+    flagRunnerStayChance: 0.1,
+  },
   spawnPoints: {
     A: { x: 0, y: 4 },
     B: { x: 8, y: 4 },

@@ -10,8 +10,8 @@ import {
   step,
   type Direction,
   type GameEvent,
-  type GameState,
   type Position,
+  type PublicGameState,
 } from '../../games/ctf/core/index.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -20,7 +20,7 @@ const config = CTF_CONFIG;
 export type Highlight = 'move' | 'shoot' | null;
 
 export interface BoardRenderInput {
-  game: GameState;
+  game: PublicGameState;
   myId: string;
   highlight: Highlight;
   /** 剛被打中、要閃一下的角色 */
@@ -30,7 +30,7 @@ export interface BoardRenderInput {
 export interface BoardView {
   render(input: BoardRenderInput): void;
   /** 畫出這回合的射擊線；previous 是結算前的場面 */
-  drawShots(previous: GameState, events: GameEvent[]): void;
+  drawShots(previous: PublicGameState, events: GameEvent[]): void;
 }
 
 export function createBoard(
@@ -94,8 +94,8 @@ export function createBoard(
         } else if (game.flag.status === 'onGround' && samePosition(game.flag.position, position)) {
           cell.appendChild(label('🚩', 'flag'));
         }
-        // 旗子等待重新出現：在下一次出現的格子上顯示淡淡的旗子和剩餘回合數
-        if (game.flag.status === 'returning' && samePosition(game.flag.nextPosition, position)) {
+        // v0.5：預告階段，在預告的格子上顯示淡淡的旗子和剩餘回合數（隱藏階段場地上什麼都沒有）
+        if (game.flag.status === 'announced' && samePosition(game.flag.nextPosition, position)) {
           const preview = document.createElement('div');
           preview.className = 'flag-preview';
           preview.title = `旗子 ${game.flag.roundsLeft} 回合後出現在這裡`;
@@ -107,7 +107,7 @@ export function createBoard(
     }
   }
 
-  function drawShots(previous: GameState, events: GameEvent[]): void {
+  function drawShots(previous: PublicGameState, events: GameEvent[]): void {
     shotLayer.replaceChildren();
     for (const event of events) {
       if (event.type !== 'shot') continue;

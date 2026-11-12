@@ -1,14 +1,12 @@
-// 範例 AI：攻擊型（規則第 8 節，v0.4 改成會預判）。
-// 每回合依照下面的順序，選第一個符合的：
+// 範例 AI：攻擊型（規則第 8 節，v0.5 整段重寫）。
+// 每回合依照下面的順序：
 //   1. 自己拿著旗：走最短路回家。
-//   2. 沒拿旗，而且對手在場、不是無敵：先猜對手這回合會走到哪一格，
-//      那一格在自己的射擊線上就朝那個方向射擊。
-//      猜法：對手拿著旗 → 照最短路往他家走一步；旗子在地上 → 往旗子走一步；
-//            旗子等待重新出現 → 往預告位置走一步；其他情況 → 不動。
-//      猜的那一格如果是自己站的位置，改猜他不動。
-//   3. 否則，旗子在地上：走最短路去撿。
-//   4. 否則，旗子在對手手上：走最短路追他。
-//   5. 否則（旗子等待重新出現）：往下一次出現的位置走。
+//   2. 有 15% 機率這回合不考慮開槍，直接跳到第 3 點。否則，對手在場、不是無敵時：
+//      先決定瞄準哪一格：25% 機率瞄「對手現在的位置」，其餘瞄「猜對手這回合會走到的那一格」。
+//      瞄的那一格在自己的射擊線上，就朝那個方向射擊。
+//   3. 否則，旗子在對手手上：走最短路追他。
+//   4. 否則：照共用的「去找旗子」規定。
+// 兩個機率放在設定檔 games/ctf/core/config.ts 的 bots。
 
 import {
   CTF_CONFIG,
@@ -17,74 +15,83 @@ import {
   type Bot,
   type Character,
   type CtfConfig,
-  type GameState,
   type Position,
+  type PublicGameState,
 } from '../core/index.ts';
-import { firstStepTowards, moveTowards, shootingDirection, stepAside } from './pathfinding.ts';
+import { createRoundRandom, type RandomSource } from './botRandom.ts';
+import { moveTowards, seekFlag, shootingDirection, standbyPoint, stepTowards } from './pathfinding.ts';
 
-export function createAttacker(config: CtfConfig = CTF_CONFIG): Bot {
+export function createAttacker(aiSeed: number, config: CtfConfig = CTF_CONFIG): Bot {
   return (view) => {
     const { state, selfId } = view;
     const self = state.characters.find((character) => character.id === selfId);
     if (!self?.position) return { type: 'stay' };
+    const position = self.position;
+    const random = createRoundRandom(aiSeed, state.round, selfId);
     const flag = state.flag;
 
     // 1. 自己拿著旗：回家
     if (flag.status === 'carried' && flag.carrierId === selfId) {
-      return moveTowards(self.position, config.spawnPoints[self.team], self.team, config);
+      return moveTowards(position, config.spawnPoints[self.team], self.team, config, random);
     }
 
-    // 2. 預判對手這回合會走到哪一格，那一格在射擊線上就射擊
-    for (const opponent of state.characters) {
-      if (opponent.team === self.team || !opponent.position || opponent.invulnerableRoundsLeft > 0) continue;
-      const guess = predictNextPosition(state, opponent, self.position, config);
-      const direction = shootingDirection(self.position, guess, config);
-      if (direction) return { type: 'shoot', direction };
+    // 2. 考慮開槍（有一定機率這回合不考慮）
+    const skipShooting = random() < config.bots.attackerSkipShootingChance;
+    if (!skipShooting) {
+      for (const opponent of state.characters) {
+        if (opponent.team === self.team || !opponent.position || opponent.invulnerableRoundsLeft > 0) continue;
+        const aimAtCurrent = random() < config.bots.attackerAimAtCurrentChance;
+        const target = aimAtCurrent ? opponent.position : predictNextPosition(state, opponent, position, config, random);
+        const direction = shootingDirection(position, target, config);
+        if (direction) return { type: 'shoot', direction };
+      }
     }
 
-    // 3. 旗子在地上：去撿（站在旗子上不會撿起，要先離開再走回來）
-    if (flag.status === 'onGround') {
-      if (samePosition(self.position, flag.position)) return stepAside(self.position, self.team, config);
-      return moveTowards(self.position, flag.position, self.team, config);
-    }
-
-    // 4. 旗子在對手手上：追他
+    // 3. 旗子在對手手上：追他
     if (flag.status === 'carried') {
       const carrier = state.characters.find((character) => character.id === flag.carrierId);
-      if (carrier?.position) return moveTowards(self.position, carrier.position, self.team, config);
-      return { type: 'stay' };
+      if (carrier && carrier.team !== self.team && carrier.position) {
+        return moveTowards(position, carrier.position, self.team, config, random);
+      }
     }
 
-    // 5. 旗子等待重新出現：往下一次出現的位置走
-    return moveTowards(self.position, flag.nextPosition, self.team, config);
+    // 4. 去找旗子
+    return seekFlag({ position, team: self.team }, state, config, random);
   };
 }
 
 /**
- * 猜對手這回合會走到哪一格（規則第 8 節的猜法）。
- * 有好幾條一樣短的路時，照「上、下、左、右」的順序取第一條。
+ * 猜對手這回合會走到哪一格（規則第 8 節攻擊型第 2 點的猜法）：
+ * - 對手拿著旗：往他家走一步
+ * - 旗子在地上：往旗子走一步
+ * - 預告階段：往預告位置走一步
+ * - 隱藏階段：往他的待命點走一步
+ * - 其他情況：不動
+ * 有好幾個一樣短的方向時隨機猜一個。猜的那一格如果是自己站的位置，改猜他不動。
  */
 export function predictNextPosition(
-  state: GameState,
+  state: PublicGameState,
   opponent: Character,
   myPosition: Position,
-  config: CtfConfig = CTF_CONFIG,
+  config: CtfConfig,
+  random: RandomSource,
 ): Position {
   const from = opponent.position!;
   const flag = state.flag;
   let goal: Position | null = null;
-  if (flag.status === 'carried' && flag.carrierId === opponent.id) {
-    goal = config.spawnPoints[opponent.team]; // 拿著旗：往他家走
+  if (flag.status === 'carried') {
+    if (flag.carrierId === opponent.id) goal = config.spawnPoints[opponent.team];
   } else if (flag.status === 'onGround') {
-    goal = flag.position; // 旗子在地上：往旗子走
-  } else if (flag.status === 'returning') {
-    goal = flag.nextPosition; // 旗子等待重新出現：往預告位置走
+    goal = flag.position;
+  } else if (flag.status === 'announced') {
+    goal = flag.nextPosition;
+  } else {
+    goal = standbyPoint(opponent.team, config);
   }
-  if (!goal) return from; // 其他情況：猜他不動
+  if (!goal) return from;
 
-  const direction = firstStepTowards(from, goal, opponent.team, config);
+  const direction = stepTowards(from, goal, opponent.team, config, random);
   if (!direction) return from;
   const guess = step(from, direction);
-  // 猜的那一格是自己站的位置：改猜他不動
   return samePosition(guess, myPosition) ? from : guess;
 }

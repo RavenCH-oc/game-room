@@ -1,6 +1,7 @@
-// 回合結算（規則第 4、5、6 節，v0.4）。
-// v0.4 的順序：放旗 → 移動 → 撿旗 → 得分 → 射擊 → 重生倒數，整回合做完才判定勝負。
-// 純邏輯：不改傳進來的場面、不用隨機、不計時。同樣的輸入一定得到同樣的輸出。
+// 回合結算（規則第 4、5、6 節，v0.5）。
+// 順序：放旗 → 移動 → 撿旗 → 得分 → 射擊 →（得分後重新開局）→ 重生與倒數，整回合做完才判定勝負。
+// 純邏輯：不改傳進來的場面、不計時。需要隨機時只用場面裡的種子亂數，
+// 所以同樣的輸入一定得到同樣的輸出。
 
 import {
   isDirection,
@@ -12,7 +13,7 @@ import {
   step,
 } from './board.ts';
 import { CTF_CONFIG, type CtfConfig } from './config.ts';
-import { flagSpawnPosition } from './state.ts';
+import { advanceFlagStage, startFlagCycle } from './flag.ts';
 import type {
   Action,
   ActionMap,
@@ -107,14 +108,6 @@ export function resolveRound(
       samePosition(carrier.position, config.spawnPoints[carrier.team])
     ) {
       next.scores[carrier.team] += 1;
-      // 下一次出現的位置照順序輪流。全場共用一個順序：
-      // 開場是第 0 次，第 n 次得分（兩隊加總）後是第 n 次
-      const totalScores = next.scores.A + next.scores.B;
-      next.flag = {
-        status: 'returning',
-        roundsLeft: config.flagReturnRounds,
-        nextPosition: { ...flagSpawnPosition(totalScores, config) },
-      };
       scoredThisRound = true;
       scoringTeam = carrier.team;
       events.push({
@@ -123,13 +116,20 @@ export function resolveRound(
         team: carrier.team,
         scores: { ...next.scores },
       });
+      // v0.5：旗子進入「隱藏」階段（回合數設成 0 時直接預告或出現）
+      startFlagCycle(next, config, events);
     }
   }
 
   // ── 步驟 5：射擊（v0.4：以移動之後的位置判定） ──
   const { knockedDownIds, knockdownTeams } = resolveShooting(next, chosenActions, startPositions, config, events);
 
-  // ── 步驟 6：重生與無敵倒數 ──
+  // ── 得分後重新開局（v0.5，開關）：射擊結算完、步驟 6 之前 ──
+  if (scoredThisRound && config.resetOnScore) {
+    resetAllToSpawn(next, config, events);
+  }
+
+  // ── 步驟 6：重生與無敵倒數、旗子階段的倒數 ──
   resolveCountdowns(next, knockedDownIds, scoredThisRound, config, events);
 
   // ── 六個步驟都做完，才判定勝負 ──
@@ -415,7 +415,21 @@ function resolveMovement(
   return movedIds;
 }
 
-/** 步驟 6：無敵倒數、重生倒數、旗子回到中央的倒數 */
+/**
+ * 得分後重新開局（v0.5）：所有角色（包含倒地離場中的、這回合剛倒地的）
+ * 回到自己的重生點、生命值補滿、離場倒數和無敵都歸零。這種回場不給無敵。
+ */
+function resetAllToSpawn(next: GameState, config: CtfConfig, events: GameEvent[]): void {
+  for (const character of next.characters) {
+    character.position = { ...config.spawnPoints[character.team] };
+    character.hp = config.maxHp;
+    character.respawnCountdown = 0;
+    character.invulnerableRoundsLeft = 0;
+  }
+  events.push({ type: 'resetAfterScore' });
+}
+
+/** 步驟 6：無敵倒數、重生倒數、旗子階段的倒數 */
 function resolveCountdowns(
   next: GameState,
   knockedDownIds: Set<string>,
@@ -446,16 +460,9 @@ function resolveCountdowns(
     }
   }
 
-  // 旗子：這回合才得分的不扣，之前就在等的扣一回合；扣到 0 就出現在預定的位置
-  if (next.flag.status === 'returning') {
-    if (!scoredThisRound) {
-      next.flag.roundsLeft -= 1;
-    }
-    if (next.flag.roundsLeft <= 0) {
-      const position = next.flag.nextPosition;
-      next.flag = { status: 'onGround', position: { ...position } };
-      events.push({ type: 'flagReturned', position: { ...position } });
-    }
+  // 旗子（v0.5）：目前階段的剩餘回合數減 1；這回合才得分的不減
+  if (!scoredThisRound) {
+    advanceFlagStage(next, config, events);
   }
 }
 

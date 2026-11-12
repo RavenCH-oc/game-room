@@ -2,7 +2,8 @@
 // 不開瀏覽器、不真的等：用假的連線和 Vitest 的假計時器。
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CTF_CONFIG, type CtfConfig } from '../../games/ctf/core/index.ts';
+import { createBot } from '../../games/ctf/bots/index.ts';
+import { CTF_CONFIG, createInitialState, resolveRound, type Bot, type CtfConfig } from '../../games/ctf/core/index.ts';
 import { SERVER_CONFIG } from '../config.ts';
 import type { ClientMessage, RoomView, ServerMessage } from '../protocol.ts';
 import { RoomManager } from '../roomManager.ts';
@@ -65,10 +66,13 @@ function actionFor(client: FakeClient, action: unknown) {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  // 伺服器每場開始會在終端機印出房號和種子；測試時不要印出來
+  vi.spyOn(console, 'log').mockImplementation(() => {});
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('第 3 節：開房與加入', () => {
@@ -274,7 +278,6 @@ describe('第 5 節：比賽中的回合', () => {
       ...CTF_CONFIG,
       maxHp: 1,
       spawnPoints: { A: { x: 3, y: 0 }, B: { x: 4, y: 0 } },
-      flagSpawnOrder: [{ x: 4, y: 8 }],
     };
     const manager = new RoomManager({ ctfConfig });
     const { a, b } = startPlaying(manager);
@@ -298,8 +301,8 @@ describe('第 5 節：比賽中的回合', () => {
       ...CTF_CONFIG,
       maxHp: 1,
       spawnPoints: { A: { x: 3, y: 0 }, B: { x: 4, y: 0 } },
-      // 旗子放在左上角：攻擊 AI 會猜 A 往左走，A 一直在牠的射擊線上
-      flagSpawnOrder: [{ x: 0, y: 0 }],
+      // 攻擊 AI 一定開槍、一定瞄「對手現在的位置」，A 站在旁邊不動就會被打倒
+      bots: { ...CTF_CONFIG.bots, attackerAimAtCurrentChance: 1, attackerSkipShootingChance: 0 },
     };
 
     it('有人倒地離場中的回合是 1.5 秒；所有人都在場的回合是 3 秒；重生後的下一回合回到 3 秒', () => {
@@ -612,5 +615,119 @@ describe('第 4 節：結束後', () => {
     a.send({ type: 'rematch' });
     vi.advanceTimersByTime(4 * 60_000);
     expect(manager.roomCount).toBe(1);
+  });
+});
+
+describe('第 4、5 節：每一場比賽的種子（v0.5）', () => {
+  // 回合上限縮短，兩回合就打完（延長賽平手）
+  const shortConfig: CtfConfig = { ...CTF_CONFIG, regularMaxRounds: 1, overtimeMaxRounds: 1 };
+
+  it('比賽進行中送給瀏覽器的資料裡沒有種子和亂數狀態；比賽結束時的資料裡有種子', () => {
+    const SEED = 987654321;
+    const manager = new RoomManager({ ctfConfig: shortConfig, generateSeed: () => SEED });
+    const { a, b } = startPlaying(manager);
+    vi.advanceTimersByTime(ROUND_MS); // 打完第 1 回合，還沒結束
+
+    for (const client of [a, b]) {
+      const roomMessages = client.messages.filter((message) => message.type === 'room');
+      expect(roomMessages.length).toBeGreaterThan(0);
+      for (const message of roomMessages) {
+        if (message.type !== 'room' || message.room.phase === 'finished') continue;
+        expect(message.room.seed).toBeNull();
+        expect(message.room.game ?? {}).not.toHaveProperty('seed');
+        expect(message.room.game ?? {}).not.toHaveProperty('rngState');
+        const text = JSON.stringify(message);
+        expect(text).not.toContain(String(SEED));
+        expect(text).not.toContain('rngState');
+      }
+    }
+
+    vi.advanceTimersByTime(ROUND_MS); // 第 2 回合結算完：比賽結束
+    for (const client of [a, b]) {
+      const finished = client.lastRoom();
+      expect(finished.phase).toBe('finished');
+      expect(finished.seed).toBe(SEED);
+      // 結束後場面本身還是不含亂數狀態，種子另外附上
+      expect(finished.game).not.toHaveProperty('rngState');
+    }
+  });
+
+  it('指定種子開賽時，旗子的預告位置和核心算出來的一致', () => {
+    const SEED = 555;
+    const manager = new RoomManager({ generateSeed: () => SEED });
+    const { a } = startPlaying(manager);
+    vi.advanceTimersByTime(ROUND_MS * 2); // 第 2 回合結算完進入預告
+
+    // 用核心自己算：同一個種子，兩回合都不動
+    let expected = createInitialState(CTF_CONFIG, SEED);
+    expected = resolveRound(expected, {}).state;
+    expected = resolveRound(expected, {}).state;
+    expect(expected.flag.status).toBe('announced');
+
+    const flag = a.lastRoom().game!.flag;
+    expect(flag).toEqual(expected.flag);
+  });
+
+  it('同一個房間連打兩場，第二場用的是新產生的種子，AI 也重新建立', () => {
+    const seeds = [111, 222];
+    const created: { seed: number; characterId: string }[] = [];
+    /** 每個 AI 被呼叫時記下自己是用哪個種子建立的 */
+    const calledWithSeed: number[] = [];
+    const logs: string[] = [];
+    const manager = new RoomManager({
+      ctfConfig: shortConfig,
+      generateSeed: () => seeds.shift()!,
+      createBot: (kind, matchSeed, characterId, config): Bot => {
+        created.push({ seed: matchSeed, characterId });
+        const bot = createBot(kind, matchSeed, characterId, config);
+        return (view) => {
+          calledWithSeed.push(matchSeed);
+          return bot(view);
+        };
+      },
+      log: (text) => logs.push(text),
+    });
+    const a = fakeClient(manager);
+    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiAttacker' });
+    const code = a.lastRoom().roomCode;
+    vi.advanceTimersByTime(COUNTDOWN_MS + ROUND_MS * 2);
+    expect(a.lastRoom()).toMatchObject({ phase: 'finished', seed: 111 });
+
+    a.send({ type: 'rematch' });
+    vi.advanceTimersByTime(COUNTDOWN_MS + ROUND_MS * 2);
+    expect(a.lastRoom()).toMatchObject({ phase: 'finished', seed: 222 });
+
+    // AI 在每一場開始時用那一場的種子重新建立
+    expect(created).toEqual([
+      { seed: 111, characterId: 'B1' },
+      { seed: 222, characterId: 'B1' },
+    ]);
+    // 第一場用第一個 AI、第二場用第二個 AI
+    expect(calledWithSeed).toEqual([111, 111, 222, 222]);
+    // 比賽開始時在終端機印出房號和種子
+    expect(logs).toEqual([`房間 ${code} 開始新的一場，種子 111`, `房間 ${code} 開始新的一場，種子 222`]);
+  });
+
+  it('真人對戰再來一場也會換新種子', () => {
+    const seeds = [10, 20];
+    const manager = new RoomManager({ ctfConfig: shortConfig, generateSeed: () => seeds.shift()! });
+    const { a, b } = startPlaying(manager);
+    vi.advanceTimersByTime(ROUND_MS * 2);
+    expect(a.lastRoom().seed).toBe(10);
+    a.send({ type: 'rematch' });
+    b.send({ type: 'rematch' });
+    expect(a.lastRoom().seed).toBeNull(); // 新的一場還沒結束，不公開
+    vi.advanceTimersByTime(COUNTDOWN_MS + ROUND_MS * 2);
+    expect(b.lastRoom().seed).toBe(20);
+  });
+
+  it('沒有指定時，伺服器自己產生 0 到 4294967295 之間的種子', () => {
+    const manager = new RoomManager({ ctfConfig: shortConfig });
+    const { a } = startPlaying(manager);
+    vi.advanceTimersByTime(ROUND_MS * 2);
+    const seed = a.lastRoom().seed!;
+    expect(Number.isInteger(seed)).toBe(true);
+    expect(seed).toBeGreaterThanOrEqual(0);
+    expect(seed).toBeLessThanOrEqual(4294967295);
   });
 });
