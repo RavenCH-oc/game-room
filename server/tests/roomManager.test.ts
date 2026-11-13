@@ -3,14 +3,34 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBot } from '../../games/ctf/bots/index.ts';
-import { CTF_CONFIG, createInitialState, resolveRound, type Bot, type CtfConfig } from '../../games/ctf/core/index.ts';
+import {
+  CLASSIC_MAP_9X9,
+  CTF_CONFIG,
+  createInitialState,
+  generateMap,
+  resolveRound,
+  type Bot,
+  type CtfConfig,
+  type GameMap,
+} from '../../games/ctf/core/index.ts';
 import { SERVER_CONFIG } from '../config.ts';
 import type { ClientMessage, RoomView, ServerMessage } from '../protocol.ts';
-import { RoomManager } from '../roomManager.ts';
+import { RoomManager, type RoomManagerOptions } from '../roomManager.ts';
 
 const ROUND_MS = CTF_CONFIG.roundSeconds * 1000;
 const COUNTDOWN_MS = SERVER_CONFIG.startCountdownSeconds * 1000;
 const GRACE_MS = SERVER_CONFIG.disconnectGraceSeconds * 1000;
+
+/**
+ * v0.6：v0.5 以前寫的房間測試用到 9×9 的座標，所以指定原本的 9×9 固定地圖開場。
+ * v0.6 的測試直接用 classicManager()，每一場用種子生成隨機地圖。
+ */
+/** 兩個重生點靠在一起的 9×9 地圖（為了快速做出「有人倒地」的場面） */
+const SPAWNS_SIDE_BY_SIDE: GameMap = { ...CLASSIC_MAP_9X9, spawnPoints: { A: { x: 3, y: 0 }, B: { x: 4, y: 0 } } };
+
+function classicManager(options: RoomManagerOptions = {}): RoomManager {
+  return new RoomManager({ fixedMap: CLASSIC_MAP_9X9, ...options });
+}
 
 let connectionCounter = 0;
 
@@ -77,7 +97,7 @@ afterEach(() => {
 
 describe('第 3 節：開房與加入', () => {
   it('開房：拿到 4 碼房號（大寫、沒有 I 和 O），開房的人是 A 隊，等待朋友', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'friend' });
 
@@ -88,7 +108,7 @@ describe('第 3 節：開房與加入', () => {
   });
 
   it('加入：加入的人是 B 隊，雙方都收到房間資料', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startFriendMatch(manager);
     expect(b.lastOfType('joined')?.team).toBe('B');
     expect(a.lastRoom().seats.B?.nickname).toBe('小華');
@@ -96,7 +116,7 @@ describe('第 3 節：開房與加入', () => {
   });
 
   it('房號小寫也能加入', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'friend' });
     const b = fakeClient(manager);
@@ -105,7 +125,7 @@ describe('第 3 節：開房與加入', () => {
   });
 
   it('房號不存在：顯示錯誤，留在大廳', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const b = fakeClient(manager);
     b.send({ type: 'joinRoom', nickname: '小華', roomCode: 'ZZZZ' });
     expect(b.lastOfType('error')?.message).toContain('找不到');
@@ -113,7 +133,7 @@ describe('第 3 節：開房與加入', () => {
   });
 
   it('房間已滿：第三個人加入顯示錯誤', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { code } = startFriendMatch(manager);
     const c = fakeClient(manager);
     c.send({ type: 'joinRoom', nickname: '小美', roomCode: code });
@@ -122,7 +142,7 @@ describe('第 3 節：開房與加入', () => {
   });
 
   it('AI 房間不能再加入（AI 已經佔了 B 隊）', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiFlagRunner' });
     const c = fakeClient(manager);
@@ -131,7 +151,7 @@ describe('第 3 節：開房與加入', () => {
   });
 
   it('暱稱要 1 到 12 個字', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '   ', opponent: 'friend' });
     expect(a.lastOfType('error')?.message).toContain('暱稱');
@@ -142,7 +162,7 @@ describe('第 3 節：開房與加入', () => {
   });
 
   it('同時房間數上限 50', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     for (let index = 0; index < SERVER_CONFIG.maxRooms; index++) {
       fakeClient(manager).send({ type: 'createRoom', nickname: `玩家${index}`, opponent: 'friend' });
     }
@@ -156,7 +176,7 @@ describe('第 3 節：開房與加入', () => {
 
 describe('第 4 節：房間流程', () => {
   it('兩邊到齊才開始：只有開房的人時一直等待', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'friend' });
     vi.advanceTimersByTime(60_000);
@@ -164,7 +184,7 @@ describe('第 4 節：房間流程', () => {
   });
 
   it('兩邊到齊後倒數 3 秒開始', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startFriendMatch(manager);
     expect(a.lastRoom().phase).toBe('countdown');
     vi.advanceTimersByTime(COUNTDOWN_MS - 1);
@@ -175,7 +195,7 @@ describe('第 4 節：房間流程', () => {
   });
 
   it('對 AI 直接開始：跳過等待，AI 是 B 隊', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiRandomWalker' });
     const room = a.lastRoom();
@@ -186,7 +206,7 @@ describe('第 4 節：房間流程', () => {
   });
 
   it('開房可以選「AI：攻擊」', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiAttacker' });
     expect(a.lastRoom().seats.B).toMatchObject({ nickname: 'AI：攻擊', isAi: true });
@@ -197,7 +217,7 @@ describe('第 4 節：房間流程', () => {
   });
 
   it('對 AI：AI 每回合由伺服器呼叫腳本出手', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiFlagRunner' });
     vi.advanceTimersByTime(COUNTDOWN_MS);
@@ -209,7 +229,7 @@ describe('第 4 節：房間流程', () => {
   });
 
   it('等待中按「取消」：房間刪除', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'friend' });
     a.send({ type: 'leaveRoom' });
@@ -220,7 +240,7 @@ describe('第 4 節：房間流程', () => {
 
 describe('第 5 節：比賽中的回合', () => {
   it('兩邊都送出就立刻結算，不用等時間到', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startPlaying(manager);
     actionFor(a, { type: 'move', direction: 'right' });
     expect(a.lastRoom().game!.round).toBe(0);
@@ -235,7 +255,7 @@ describe('第 5 節：比賽中的回合', () => {
   });
 
   it('只有一邊送出：要等到時間到才結算', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a } = startPlaying(manager);
     actionFor(a, { type: 'move', direction: 'right' });
     vi.advanceTimersByTime(ROUND_MS - 1);
@@ -245,7 +265,7 @@ describe('第 5 節：比賽中的回合', () => {
   });
 
   it('沒送出的視為不動', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a } = startPlaying(manager);
     actionFor(a, { type: 'move', direction: 'right' });
     vi.advanceTimersByTime(ROUND_MS);
@@ -255,7 +275,7 @@ describe('第 5 節：比賽中的回合', () => {
   });
 
   it('時間到兩邊都沒送：兩邊都不動，進入下一回合', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a } = startPlaying(manager);
     vi.advanceTimersByTime(ROUND_MS * 3);
     expect(a.lastRoom().game!.round).toBe(3);
@@ -263,7 +283,7 @@ describe('第 5 節：比賽中的回合', () => {
   });
 
   it('結算前可以改動作，以最後一次為準', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startPlaying(manager);
     actionFor(a, { type: 'move', direction: 'up' });
     actionFor(a, { type: 'move', direction: 'right' });
@@ -274,12 +294,8 @@ describe('第 5 節：比賽中的回合', () => {
 
   it('倒地離場中的玩家不用送出也會結算', () => {
     // 為了快速做出「有人倒地」的場面：兩個重生點靠在一起、生命值 1
-    const ctfConfig: CtfConfig = {
-      ...CTF_CONFIG,
-      maxHp: 1,
-      spawnPoints: { A: { x: 3, y: 0 }, B: { x: 4, y: 0 } },
-    };
-    const manager = new RoomManager({ ctfConfig });
+    const ctfConfig: CtfConfig = { ...CTF_CONFIG, maxHp: 1 };
+    const manager = classicManager({ ctfConfig, fixedMap: SPAWNS_SIDE_BY_SIDE });
     const { a, b } = startPlaying(manager);
     actionFor(a, { type: 'shoot', direction: 'right' });
     actionFor(b, { type: 'stay' });
@@ -300,13 +316,12 @@ describe('第 5 節：比賽中的回合', () => {
     const quickKnockConfig: CtfConfig = {
       ...CTF_CONFIG,
       maxHp: 1,
-      spawnPoints: { A: { x: 3, y: 0 }, B: { x: 4, y: 0 } },
       // 攻擊 AI 一定開槍、一定瞄「對手現在的位置」，A 站在旁邊不動就會被打倒
       bots: { ...CTF_CONFIG.bots, attackerAimAtCurrentChance: 1, attackerSkipShootingChance: 0 },
     };
 
     it('有人倒地離場中的回合是 1.5 秒；所有人都在場的回合是 3 秒；重生後的下一回合回到 3 秒', () => {
-      const manager = new RoomManager({ ctfConfig: quickKnockConfig });
+      const manager = classicManager({ ctfConfig: quickKnockConfig, fixedMap: SPAWNS_SIDE_BY_SIDE });
       const { a, b } = startPlaying(manager);
       expect(a.lastRoom().roundTotalMs).toBe(ROUND_MS); // 第 1 回合：兩人都在場
 
@@ -336,7 +351,7 @@ describe('第 5 節：比賽中的回合', () => {
     });
 
     it('1.5 秒的回合裡，在場真人都送出還是立刻結算', () => {
-      const manager = new RoomManager({ ctfConfig: quickKnockConfig });
+      const manager = classicManager({ ctfConfig: quickKnockConfig, fixedMap: SPAWNS_SIDE_BY_SIDE });
       const { a, b } = startPlaying(manager);
       actionFor(a, { type: 'shoot', direction: 'right' });
       actionFor(b, { type: 'stay' });
@@ -346,7 +361,7 @@ describe('第 5 節：比賽中的回合', () => {
     });
 
     it('對 AI、真人倒地中：等滿 1.5 秒才結算，不會立刻結算', () => {
-      const manager = new RoomManager({ ctfConfig: quickKnockConfig });
+      const manager = classicManager({ ctfConfig: quickKnockConfig, fixedMap: SPAWNS_SIDE_BY_SIDE });
       const a = fakeClient(manager);
       a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiAttacker' });
       vi.advanceTimersByTime(COUNTDOWN_MS);
@@ -362,7 +377,7 @@ describe('第 5 節：比賽中的回合', () => {
     });
 
     it('送給瀏覽器的資料裡有這回合實際的總秒數', () => {
-      const manager = new RoomManager();
+      const manager = classicManager();
       const { a, b } = startFriendMatch(manager);
       expect(a.lastRoom().roundTotalMs).toBeNull(); // 倒數中還沒有回合
       vi.advanceTimersByTime(COUNTDOWN_MS);
@@ -373,7 +388,7 @@ describe('第 5 節：比賽中的回合', () => {
   });
 
   it('送給某一邊的資料裡不包含對手還沒結算的動作', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startPlaying(manager);
     const before = b.messages.length;
     actionFor(a, { type: 'shoot', direction: 'down' });
@@ -391,7 +406,7 @@ describe('第 5 節：比賽中的回合', () => {
   });
 
   it('不是這一回合的動作會被忽略', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a } = startPlaying(manager);
     a.send({ type: 'action', round: 5, action: { type: 'move', direction: 'right' } });
     expect(a.lastRoom().yourAction).toBeNull();
@@ -400,7 +415,7 @@ describe('第 5 節：比賽中的回合', () => {
   it('比賽結束時顯示結果（第 6 節的結束原因）', () => {
     // 回合上限縮短成 1 + 1，快速打到「延長賽平手」
     const ctfConfig: CtfConfig = { ...CTF_CONFIG, regularMaxRounds: 1, overtimeMaxRounds: 1 };
-    const manager = new RoomManager({ ctfConfig });
+    const manager = classicManager({ ctfConfig });
     const { a } = startPlaying(manager);
     vi.advanceTimersByTime(ROUND_MS * 2);
     expect(a.lastRoom()).toMatchObject({ phase: 'finished', result: { winner: null, reason: 'draw' } });
@@ -409,7 +424,7 @@ describe('第 5 節：比賽中的回合', () => {
 
 describe('第 5 節：亂七八糟的訊息', () => {
   it('格式不對的訊息一律忽略，伺服器不會當掉', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startPlaying(manager);
     const garbage: unknown[] = [
       'not json',
@@ -447,7 +462,7 @@ describe('第 5 節：亂七八糟的訊息', () => {
   });
 
   it('不在房間裡的人送動作：忽略', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a } = startPlaying(manager);
     const stranger = fakeClient(manager);
     stranger.send({ type: 'action', round: 1, action: { type: 'move', direction: 'right' } });
@@ -458,7 +473,7 @@ describe('第 5 節：亂七八糟的訊息', () => {
 
 describe('第 7 節：斷線', () => {
   it('斷線後 30 秒內用通行碼重連，回到原本的角色', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startPlaying(manager);
     const token = a.lastOfType('joined')!.token;
     a.disconnect();
@@ -477,7 +492,7 @@ describe('第 7 節：斷線', () => {
   });
 
   it('斷線期間角色每回合視為不動，比賽照常進行', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startPlaying(manager);
     actionFor(a, { type: 'move', direction: 'right' });
     a.disconnect();
@@ -489,7 +504,7 @@ describe('第 7 節：斷線', () => {
   });
 
   it('超過 30 秒沒回來：比賽結束，對手獲勝（對手離開）', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startPlaying(manager);
     const token = a.lastOfType('joined')!.token;
     a.disconnect();
@@ -503,7 +518,7 @@ describe('第 7 節：斷線', () => {
   });
 
   it('兩邊都離開：房間刪除', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a, b } = startPlaying(manager);
     a.disconnect();
     b.disconnect();
@@ -512,7 +527,7 @@ describe('第 7 節：斷線', () => {
   });
 
   it('對 AI 時斷線超過 30 秒：房間刪除', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiFlagRunner' });
     vi.advanceTimersByTime(COUNTDOWN_MS);
@@ -522,7 +537,7 @@ describe('第 7 節：斷線', () => {
   });
 
   it('同一個分頁重新整理時舊連線還沒斷：新的連線接手，舊的回大廳', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a } = startPlaying(manager);
     const token = a.lastOfType('joined')!.token;
     const refreshed = fakeClient(manager);
@@ -532,7 +547,7 @@ describe('第 7 節：斷線', () => {
   });
 
   it('另一個分頁讀到共用的通行碼：位子有人連線中就不能搶', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a } = startPlaying(manager);
     const token = a.lastOfType('joined')!.token;
     const otherTab = fakeClient(manager);
@@ -543,7 +558,7 @@ describe('第 7 節：斷線', () => {
   });
 
   it('把分頁關掉再打開（用共用的通行碼）：位子斷線中就可以回去', () => {
-    const manager = new RoomManager();
+    const manager = classicManager();
     const { a } = startPlaying(manager);
     const token = a.lastOfType('joined')!.token;
     a.disconnect();
@@ -558,7 +573,7 @@ describe('第 4 節：結束後', () => {
   const shortConfig: CtfConfig = { ...CTF_CONFIG, regularMaxRounds: 1, overtimeMaxRounds: 1 };
 
   it('再來一場：真人對戰要兩邊都同意', () => {
-    const manager = new RoomManager({ ctfConfig: shortConfig });
+    const manager = classicManager({ ctfConfig: shortConfig });
     const { a, b } = startPlaying(manager);
     vi.advanceTimersByTime(ROUND_MS * 2);
     expect(a.lastRoom().phase).toBe('finished');
@@ -575,7 +590,7 @@ describe('第 4 節：結束後', () => {
   });
 
   it('再來一場：對 AI 按了就重新開始', () => {
-    const manager = new RoomManager({ ctfConfig: shortConfig });
+    const manager = classicManager({ ctfConfig: shortConfig });
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiRandomWalker' });
     vi.advanceTimersByTime(COUNTDOWN_MS + ROUND_MS * 2);
@@ -585,7 +600,7 @@ describe('第 4 節：結束後', () => {
   });
 
   it('對手回大廳後不能再來一場', () => {
-    const manager = new RoomManager({ ctfConfig: shortConfig });
+    const manager = classicManager({ ctfConfig: shortConfig });
     const { a, b } = startPlaying(manager);
     vi.advanceTimersByTime(ROUND_MS * 2);
     b.send({ type: 'leaveRoom' });
@@ -597,7 +612,7 @@ describe('第 4 節：結束後', () => {
   });
 
   it('比賽結束後 5 分鐘沒人按任何按鈕：房間刪除', () => {
-    const manager = new RoomManager({ ctfConfig: shortConfig });
+    const manager = classicManager({ ctfConfig: shortConfig });
     const { a } = startPlaying(manager);
     vi.advanceTimersByTime(ROUND_MS * 2);
     vi.advanceTimersByTime(SERVER_CONFIG.finishedRoomTtlMinutes * 60_000 - 1);
@@ -608,7 +623,7 @@ describe('第 4 節：結束後', () => {
   });
 
   it('按了按鈕會重新計算 5 分鐘', () => {
-    const manager = new RoomManager({ ctfConfig: shortConfig });
+    const manager = classicManager({ ctfConfig: shortConfig });
     const { a } = startPlaying(manager);
     vi.advanceTimersByTime(ROUND_MS * 2);
     vi.advanceTimersByTime(4 * 60_000);
@@ -624,7 +639,7 @@ describe('第 4、5 節：每一場比賽的種子（v0.5）', () => {
 
   it('比賽進行中送給瀏覽器的資料裡沒有種子和亂數狀態；比賽結束時的資料裡有種子', () => {
     const SEED = 987654321;
-    const manager = new RoomManager({ ctfConfig: shortConfig, generateSeed: () => SEED });
+    const manager = classicManager({ ctfConfig: shortConfig, generateSeed: () => SEED });
     const { a, b } = startPlaying(manager);
     vi.advanceTimersByTime(ROUND_MS); // 打完第 1 回合，還沒結束
 
@@ -674,7 +689,7 @@ describe('第 4、5 節：每一場比賽的種子（v0.5）', () => {
     /** 每個 AI 被呼叫時記下自己是用哪個種子建立的 */
     const calledWithSeed: number[] = [];
     const logs: string[] = [];
-    const manager = new RoomManager({
+    const manager = classicManager({
       ctfConfig: shortConfig,
       generateSeed: () => seeds.shift()!,
       createBot: (kind, matchSeed, characterId, config): Bot => {
@@ -710,7 +725,7 @@ describe('第 4、5 節：每一場比賽的種子（v0.5）', () => {
 
   it('真人對戰再來一場也會換新種子', () => {
     const seeds = [10, 20];
-    const manager = new RoomManager({ ctfConfig: shortConfig, generateSeed: () => seeds.shift()! });
+    const manager = classicManager({ ctfConfig: shortConfig, generateSeed: () => seeds.shift()! });
     const { a, b } = startPlaying(manager);
     vi.advanceTimersByTime(ROUND_MS * 2);
     expect(a.lastRoom().seed).toBe(10);
@@ -722,12 +737,59 @@ describe('第 4、5 節：每一場比賽的種子（v0.5）', () => {
   });
 
   it('沒有指定時，伺服器自己產生 0 到 4294967295 之間的種子', () => {
-    const manager = new RoomManager({ ctfConfig: shortConfig });
+    const manager = classicManager({ ctfConfig: shortConfig });
     const { a } = startPlaying(manager);
     vi.advanceTimersByTime(ROUND_MS * 2);
     const seed = a.lastRoom().seed!;
     expect(Number.isInteger(seed)).toBe(true);
     expect(seed).toBeGreaterThanOrEqual(0);
     expect(seed).toBeLessThanOrEqual(4294967295);
+  });
+});
+
+describe('第 4、6 節：每一場的地圖（v0.6）', () => {
+  // 回合上限縮短，兩回合就打完（延長賽平手）
+  const shortConfig: CtfConfig = { ...CTF_CONFIG, regularMaxRounds: 1, overtimeMaxRounds: 1 };
+  const mapOf = (seed: number) =>
+    generateMap(seed, CTF_CONFIG.boardWidth, CTF_CONFIG.boardHeight, CTF_CONFIG.map).map;
+
+  it('送給瀏覽器的場面裡有地圖；指定種子開賽時，地圖和核心用同一個種子生成的一致', () => {
+    const manager = new RoomManager({ generateSeed: () => 42 });
+    const { a, b } = startPlaying(manager);
+    for (const client of [a, b]) {
+      const game = client.lastRoom().game!;
+      expect(game.map).toEqual(mapOf(42));
+      expect(game.map).toEqual(createInitialState(CTF_CONFIG, 42).map);
+      expect(game.map.width).toBe(11);
+    }
+  });
+
+  it('同一個房間連打兩場（指定兩個不同的種子），兩場的地圖不同', () => {
+    const seeds = [1, 2];
+    const manager = new RoomManager({ ctfConfig: shortConfig, generateSeed: () => seeds.shift()! });
+    const a = fakeClient(manager);
+    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiFlagRunner' });
+    const firstMap = a.lastRoom().game!.map;
+    vi.advanceTimersByTime(COUNTDOWN_MS + ROUND_MS * 2);
+    expect(a.lastRoom().phase).toBe('finished');
+
+    a.send({ type: 'rematch' });
+    const secondMap = a.lastRoom().game!.map;
+    expect(firstMap).toEqual(mapOf(1));
+    expect(secondMap).toEqual(mapOf(2));
+    expect(secondMap).not.toEqual(firstMap);
+  });
+
+  it('倒數開始時送給兩邊的資料裡已經有這一場的地圖', () => {
+    const manager = new RoomManager({ generateSeed: () => 7 });
+    const { a, b } = startFriendMatch(manager); // 還在倒數，沒有等倒數結束
+    for (const client of [a, b]) {
+      const room = client.lastRoom();
+      expect(room.phase).toBe('countdown');
+      expect(room.game?.map).toEqual(mapOf(7));
+      // 倒數中也不能有種子和亂數狀態
+      expect(room.seed).toBeNull();
+      expect(room.game).not.toHaveProperty('rngState');
+    }
   });
 });

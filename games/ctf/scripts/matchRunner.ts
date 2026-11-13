@@ -49,7 +49,7 @@ export function runMatch(kindA: BotKind, kindB: BotKind, seed: number, config: C
   print('符號：A/B 重生點  F 旗子  # 牆壁  a/b 角色  @ 拿著旗子的角色');
   print('');
   print('開場');
-  print(renderBoard(state, config));
+  print(renderBoard(state));
   print(describeStatus(state));
 
   while (!state.result) {
@@ -67,7 +67,7 @@ export function runMatch(kindA: BotKind, kindB: BotKind, seed: number, config: C
 
     print('');
     print(`── 第 ${state.round} 回合${wasOvertime ? '（延長賽）' : ''} ──`);
-    print(renderBoard(state, config));
+    print(renderBoard(state));
     print(describeStatus(state));
     for (const event of output.events) {
       const text = describeEvent(event);

@@ -6,8 +6,10 @@
 import { randomBytes } from 'node:crypto';
 import { createBot as createCtfBot, type BotKind } from '../games/ctf/bots/index.ts';
 import {
+  CLASSIC_MAP_9X9,
   CTF_CONFIG,
   createInitialState,
+  DEFAULT_SEED,
   getCharacterView,
   isDirection,
   otherTeam,
@@ -18,6 +20,7 @@ import {
   type Bot,
   type CtfConfig,
   type GameEvent,
+  type GameMap,
   type GameState,
   type Team,
 } from '../games/ctf/core/index.ts';
@@ -93,6 +96,11 @@ export interface RoomManagerOptions {
   createBot?: (kind: BotKind, matchSeed: number, characterId: string, config: CtfConfig) => Bot;
   /** 印訊息到終端機（預設 console.log） */
   log?: (text: string) => void;
+  /**
+   * v0.6：指定一張固定地圖（只給測試用，網頁版不提供選擇）。
+   * 沒指定時，每一場都用那一場的種子生成隨機地圖。
+   */
+  fixedMap?: GameMap;
 }
 
 /** 伺服器不是遊戲核心，可以用一般的隨機產生種子 */
@@ -124,6 +132,7 @@ export class RoomManager {
   private readonly generateSeed: () => number;
   private readonly createBot: NonNullable<RoomManagerOptions['createBot']>;
   private readonly log: (text: string) => void;
+  private readonly fixedMap: GameMap | undefined;
   private readonly rooms = new Map<string, Room>();
   private readonly connections = new Map<string, ConnectionRecord>();
   /** 通行碼 → 哪個房間的哪一隊 */
@@ -136,6 +145,7 @@ export class RoomManager {
     this.generateSeed = options.generateSeed ?? randomSeed;
     this.createBot = options.createBot ?? createCtfBot;
     this.log = options.log ?? ((text) => console.log(text));
+    this.fixedMap = options.fixedMap;
   }
 
   get roomCount(): number {
@@ -348,8 +358,9 @@ export class RoomManager {
     this.clearRoundTimer(room);
     room.phase = 'countdown';
     // v0.5：每一場（包含再來一場）都產生新的種子，用它建立開場場面
+    // v0.6：種子同時決定這一場的地圖；倒數時就把開場場面（含地圖）送給兩邊（下面的 broadcast）
     room.seed = this.generateSeed();
-    room.game = createInitialState(this.ctfConfig, room.seed);
+    room.game = createInitialState(this.ctfConfig, room.seed, this.fixedMap);
     room.pendingActions.clear();
     room.result = null;
     for (const team of TEAMS) {
@@ -601,7 +612,8 @@ export class RoomManager {
   }
 
   private characterIdOf(room: Room, team: Team): string | null {
-    const state = room.game ?? createInitialState(this.ctfConfig);
+    // 還沒開賽時借一個開場場面來查角色 id；用固定地圖，免得每次都生成一張隨機地圖
+    const state = room.game ?? createInitialState(this.ctfConfig, DEFAULT_SEED, CLASSIC_MAP_9X9);
     return state.characters.find((character) => character.team === team)?.id ?? null;
   }
 

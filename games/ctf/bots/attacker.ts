@@ -30,9 +30,12 @@ export function createAttacker(aiSeed: number, config: CtfConfig = CTF_CONFIG): 
     const random = createRoundRandom(aiSeed, state.round, selfId);
     const flag = state.flag;
 
+    // v0.6：地圖從看到的場面讀
+    const map = state.map;
+
     // 1. 自己拿著旗：回家
     if (flag.status === 'carried' && flag.carrierId === selfId) {
-      return moveTowards(position, config.spawnPoints[self.team], self.team, config, random);
+      return moveTowards(position, map.spawnPoints[self.team], self.team, map, random);
     }
 
     // 2. 考慮開槍（有一定機率這回合不考慮）
@@ -41,8 +44,8 @@ export function createAttacker(aiSeed: number, config: CtfConfig = CTF_CONFIG): 
       for (const opponent of state.characters) {
         if (opponent.team === self.team || !opponent.position || opponent.invulnerableRoundsLeft > 0) continue;
         const aimAtCurrent = random() < config.bots.attackerAimAtCurrentChance;
-        const target = aimAtCurrent ? opponent.position : predictNextPosition(state, opponent, position, config, random);
-        const direction = shootingDirection(position, target, config);
+        const target = aimAtCurrent ? opponent.position : predictNextPosition(state, opponent, position, random);
+        const direction = shootingDirection(position, target, map, config.shootRange);
         if (direction) return { type: 'shoot', direction };
       }
     }
@@ -51,12 +54,12 @@ export function createAttacker(aiSeed: number, config: CtfConfig = CTF_CONFIG): 
     if (flag.status === 'carried') {
       const carrier = state.characters.find((character) => character.id === flag.carrierId);
       if (carrier && carrier.team !== self.team && carrier.position) {
-        return moveTowards(position, carrier.position, self.team, config, random);
+        return moveTowards(position, carrier.position, self.team, map, random);
       }
     }
 
     // 4. 去找旗子
-    return seekFlag({ position, team: self.team }, state, config, random);
+    return seekFlag({ position, team: self.team }, state, random);
   };
 }
 
@@ -73,24 +76,24 @@ export function predictNextPosition(
   state: PublicGameState,
   opponent: Character,
   myPosition: Position,
-  config: CtfConfig,
   random: RandomSource,
 ): Position {
   const from = opponent.position!;
   const flag = state.flag;
+  const map = state.map;
   let goal: Position | null = null;
   if (flag.status === 'carried') {
-    if (flag.carrierId === opponent.id) goal = config.spawnPoints[opponent.team];
+    if (flag.carrierId === opponent.id) goal = map.spawnPoints[opponent.team];
   } else if (flag.status === 'onGround') {
     goal = flag.position;
   } else if (flag.status === 'announced') {
     goal = flag.nextPosition;
   } else {
-    goal = standbyPoint(opponent.team, config);
+    goal = standbyPoint(opponent.team, map);
   }
   if (!goal) return from;
 
-  const direction = stepTowards(from, goal, opponent.team, config, random);
+  const direction = stepTowards(from, goal, opponent.team, map, random);
   if (!direction) return from;
   const guess = step(from, direction);
   return samePosition(guess, myPosition) ? from : guess;

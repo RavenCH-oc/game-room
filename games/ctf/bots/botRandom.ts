@@ -2,25 +2,12 @@
 // - 不用 Math.random。建立 AI 時給它一個「AI 種子」，由比賽種子和角色 id 算出來。
 // - AI 不記東西：每回合的亂數由（AI 種子、回合數、角色 id）算出，
 //   所以同樣的場面給同一個 AI，一定回傳同樣的動作。
-// 亂數算法和遊戲核心一樣用 mulberry32（核心的 nextRandom）。
+// 亂數算法和遊戲核心一樣用 mulberry32（核心的 nextRandom）；FNV-1a 也用核心那一份（v0.6 搬到核心）。
 
-import { nextRandom } from '../core/index.ts';
+import { fnv1a, nextRandom } from '../core/index.ts';
 
 /** 回傳 0（含）到 1（不含）之間的數；每呼叫一次往下取一個 */
 export type RandomSource = () => number;
-
-/**
- * 32 位元 FNV-1a 雜湊：把一段文字變成 0 到 4294967295 的整數。
- * 算法：從 2166136261 開始，每個字元先 XOR 字元碼，再乘以 16777619（只留 32 位元）。
- */
-export function fnv1a(text: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < text.length; index++) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 16777619) >>> 0;
-  }
-  return hash >>> 0;
-}
 
 /**
  * AI 種子：把文字「ai:<比賽種子>:<角色 id>」做 FNV-1a 雜湊。
