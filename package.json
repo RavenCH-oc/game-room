@@ -10,7 +10,8 @@
     "start": "node server/main.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "ctf:match": "node games/ctf/scripts/match.ts"
+    "ctf:match": "node games/ctf/scripts/match.ts",
+    "ctf:map": "node games/ctf/scripts/map.ts"
   },
   "engines": {
     "node": ">=22.18"

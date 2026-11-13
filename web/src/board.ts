@@ -1,5 +1,6 @@
-// 畫 9×9 場地，以及射擊的線、被打中的閃光。
+// 畫場地，以及射擊的線、被打中的閃光。
 // 這裡只負責「畫出來」：規則結算都在伺服器（呼叫遊戲核心），網頁不重算結果。
+// v0.6：場地的大小、重生點、牆壁都照伺服器送來的場面裡的地圖畫，不從設定檔讀。
 
 import {
   CTF_CONFIG,
@@ -10,6 +11,7 @@ import {
   step,
   type Direction,
   type GameEvent,
+  type GameMap,
   type Position,
   type PublicGameState,
 } from '../../games/ctf/core/index.ts';
@@ -38,45 +40,60 @@ export function createBoard(
   shotLayer: SVGSVGElement,
   onCellClick: (position: Position) => void,
 ): BoardView {
-  const cells: HTMLElement[][] = [];
-  for (let y = 0; y < config.boardHeight; y++) {
-    const row: HTMLElement[] = [];
-    for (let x = 0; x < config.boardWidth; x++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.dataset.x = String(x);
-      cell.dataset.y = String(y);
-      cell.setAttribute('role', 'button');
-      cell.setAttribute('aria-label', `格子 (${x}, ${y})`);
-      cell.addEventListener('click', () => onCellClick({ x, y }));
-      boardElement.appendChild(cell);
-      row.push(cell);
+  let cells: HTMLElement[][] = [];
+  let gridSize = '';
+
+  /** 地圖大小和現在的格子數不一樣時，重新建立格子（每一場的地圖可能不同） */
+  function ensureGrid(map: GameMap): void {
+    const size = `${map.width}x${map.height}`;
+    if (size === gridSize) return;
+    gridSize = size;
+    boardElement.replaceChildren();
+    boardElement.style.gridTemplateColumns = `repeat(${map.width}, 1fr)`;
+    boardElement.style.gridTemplateRows = `repeat(${map.height}, 1fr)`;
+    shotLayer.setAttribute('viewBox', `0 0 ${map.width} ${map.height}`);
+    cells = [];
+    for (let y = 0; y < map.height; y++) {
+      const row: HTMLElement[] = [];
+      for (let x = 0; x < map.width; x++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.x = String(x);
+        cell.dataset.y = String(y);
+        cell.setAttribute('role', 'button');
+        cell.setAttribute('aria-label', `格子 (${x}, ${y})`);
+        cell.addEventListener('click', () => onCellClick({ x, y }));
+        boardElement.appendChild(cell);
+        row.push(cell);
+      }
+      cells.push(row);
     }
-    cells.push(row);
   }
 
   function render(input: BoardRenderInput): void {
     const { game, myId } = input;
+    const map = game.map;
+    ensureGrid(map);
     const me = game.characters.find((character) => character.id === myId);
     const myPosition = me?.position ?? null;
-    const moveTargets = input.highlight === 'move' && me && myPosition ? neighbours(myPosition, me.team) : [];
-    const shootTargets = input.highlight === 'shoot' && myPosition ? lineCells(myPosition) : [];
+    const moveTargets = input.highlight === 'move' && me && myPosition ? neighbours(myPosition, me.team, map) : [];
+    const shootTargets = input.highlight === 'shoot' && myPosition ? lineCells(myPosition, map) : [];
 
-    for (let y = 0; y < config.boardHeight; y++) {
-      for (let x = 0; x < config.boardWidth; x++) {
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
         const position = { x, y };
         const cell = cells[y]![x]!;
         const classes = ['cell'];
-        if (isWall(position, config)) classes.push('wall');
-        if (samePosition(position, config.spawnPoints.A)) classes.push('spawn-a');
-        if (samePosition(position, config.spawnPoints.B)) classes.push('spawn-b');
+        if (isWall(position, map)) classes.push('wall');
+        if (samePosition(position, map.spawnPoints.A)) classes.push('spawn-a');
+        if (samePosition(position, map.spawnPoints.B)) classes.push('spawn-b');
         if (moveTargets.some((target) => samePosition(target, position))) classes.push('can-move');
         if (shootTargets.some((target) => samePosition(target, position))) classes.push('can-shoot');
         cell.className = classes.join(' ');
         cell.replaceChildren();
 
-        if (samePosition(position, config.spawnPoints.A)) cell.appendChild(label('A', 'spawn-label'));
-        if (samePosition(position, config.spawnPoints.B)) cell.appendChild(label('B', 'spawn-label'));
+        if (samePosition(position, map.spawnPoints.A)) cell.appendChild(label('A', 'spawn-label'));
+        if (samePosition(position, map.spawnPoints.B)) cell.appendChild(label('B', 'spawn-label'));
 
         const character = game.characters.find((candidate) => candidate.position && samePosition(candidate.position, position));
         if (character) {
@@ -150,20 +167,20 @@ function hpBar(hp: number): HTMLElement {
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
 
 /** 可以點的移動目標（只是提示；能不能走由伺服器結算決定） */
-function neighbours(position: Position, team: 'A' | 'B'): Position[] {
+function neighbours(position: Position, team: 'A' | 'B', map: GameMap): Position[] {
   return DIRECTIONS.map((direction) => step(position, direction)).filter(
-    (target) => isInsideBoard(target, config) && !isWall(target, config) && !isEnemySpawn(target, team, config),
+    (target) => isInsideBoard(target, map) && !isWall(target, map) && !isEnemySpawn(target, team, map),
   );
 }
 
 /** 射擊模式時要標示的格子：四個方向、射程以內、遇到牆停 */
-function lineCells(position: Position): Position[] {
+function lineCells(position: Position, map: GameMap): Position[] {
   const result: Position[] = [];
   for (const direction of DIRECTIONS) {
     let cell = position;
     for (let distance = 1; distance <= config.shootRange; distance++) {
       cell = step(cell, direction);
-      if (!isInsideBoard(cell, config) || isWall(cell, config)) break;
+      if (!isInsideBoard(cell, map) || isWall(cell, map)) break;
       result.push(cell);
     }
   }
