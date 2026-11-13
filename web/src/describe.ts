@@ -41,8 +41,12 @@ export function describeEvent(event: GameEvent, myId: string): string | null {
       return `${who(event.characterId)}撿起旗子`;
     case 'scored':
       return `${who(event.characterId)}帶旗回家，得 1 分！`;
-    case 'flagReturned':
-      return '旗子重新出現了';
+    case 'flagAnnounced':
+      return `旗子將出現在 (${event.position.x}, ${event.position.y})`;
+    case 'flagAppeared':
+      return '旗子出現了';
+    case 'resetAfterScore':
+      return '雙方回到重生點，生命補滿';
     case 'respawned':
       return `${who(event.characterId)}在重生點復活`;
     case 'overtimeStarted':

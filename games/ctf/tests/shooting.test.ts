@@ -349,7 +349,7 @@ describe('第 9 節 旗子：持旗者被打中', () => {
     const { state: next, events } = resolveRound(state, { A1: move('left'), B1: shoot('left') });
     expect(next.scores.A).toBe(1);
     expect(hpOf(next, 'A1')).toBe(2);
-    expect(next.flag.status).toBe('returning');
+    expect(next.flag.status).toBe('hidden'); // v0.5：得分後旗子進入隱藏
     expect(events.some((event) => event.type === 'flagDropped')).toBe(false);
   });
 });

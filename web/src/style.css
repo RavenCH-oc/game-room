@@ -390,6 +390,22 @@ input[type='text'] {
   background: rgba(255, 255, 255, 0.7);
 }
 
+/* ───── 旗子隱藏、預告中的提示（v0.5） ───── */
+
+.flag-status {
+  margin: 8px 0;
+  padding: 6px 10px;
+  text-align: center;
+  font-weight: bold;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+}
+
+.seed {
+  font-size: 0.8rem;
+}
+
 /* ───── 操作與紀錄 ───── */
 
 .status {

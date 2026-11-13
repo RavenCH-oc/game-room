@@ -1,6 +1,6 @@
 // 瀏覽器和伺服器之間傳的訊息格式。網頁那邊只引用這裡的型別。
 
-import type { Action, GameEvent, GameResult, GameState, Team } from '../games/ctf/core/index.ts';
+import type { Action, GameEvent, GameResult, PublicGameState, Team } from '../games/ctf/core/index.ts';
 
 /** 開房時選的對手 */
 export type OpponentKind = 'friend' | 'aiAttacker' | 'aiFlagRunner' | 'aiRandomWalker';
@@ -53,8 +53,10 @@ export interface RoomView {
   roundRemainingMs: number | null;
   /** 這回合實際的總長度（毫秒）：平常 3000，有人倒地時 1500。倒數條照它畫（比賽中才有） */
   roundTotalMs: number | null;
-  /** 遊戲場面（倒數、比賽中、結束後才有） */
-  game: GameState | null;
+  /** 遊戲場面（倒數、比賽中、結束後才有）。v0.5：不含種子和亂數狀態 */
+  game: PublicGameState | null;
+  /** 這一場的種子（v0.5）：比賽結束後才有，進行中一律是 null */
+  seed: number | null;
   /** 自己這回合目前選的動作 */
   yourAction: Action | null;
   /** 對手這回合是否已經選好（不會告訴你他選了什麼） */

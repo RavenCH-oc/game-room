@@ -33,7 +33,7 @@ game-room/
 ```
 
 - 遊戲之間互不引用。共用的東西放在 `server/` 或 `web/`。
-- `games/<遊戲名>/core/` 不能含畫面、網路、計時器、隨機。同樣的輸入必須得到同樣的輸出。
+- `games/<遊戲名>/core/` 不能含畫面、網路、計時器。同樣的輸入必須得到同樣的輸出：不能用 `Math.random`、時間這類每次結果不同的來源；需要隨機時，只能用規則文件指定的、存在場面資料裡的種子亂數。
 - 遊戲的可調數字集中放在該遊戲的一個設定檔，不要散落在程式裡。
 - 還沒輪到的資料夾（`server/`、`web/`）不要提前建立。
 
@@ -52,7 +52,7 @@ game-room/
 - `npm start`：用打包好的網頁啟動伺服器（要先 `npm run build`）
 - `npm test`：跑全部測試
 - `npm run typecheck`：型別檢查
-- `npm run ctf:match`：讓兩個範例 AI 對打一場奪旗，在終端機印出每回合場地。可指定兩邊的 AI 和種子：`npm run ctf:match -- attacker runner 42`（AI 名稱：random 亂走、runner 搶旗、attacker 攻擊型）
+- `npm run ctf:match`：讓兩個範例 AI 對打一場奪旗，在終端機印出每回合場地。可指定兩邊的 AI 和種子：`npm run ctf:match -- attacker runner 42`（AI 名稱：random 亂走、runner 搶旗、attacker 攻擊型）。種子同時決定旗子位置和 AI 的隨機行為，同樣的種子會重播出同一場
 
 （新增指令時請更新這一段。）
 

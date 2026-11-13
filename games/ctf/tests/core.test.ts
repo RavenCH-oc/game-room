@@ -5,11 +5,12 @@ import { createRandomWalker } from '../bots/randomWalker.ts';
 import { FLAG_FAR_AWAY, makeState, positionOf, shoot } from './helpers.ts';
 
 describe('第 2 節：場地', () => {
-  it('開場：A 在 (0, 4)、B 在 (8, 4)、旗子在 (4, 4)', () => {
+  it('開場：A 在 (0, 4)、B 在 (8, 4)；v0.5：場上沒有旗子（隱藏，剩 2 回合）', () => {
     const state = createInitialState();
     expect(positionOf(state, 'A1')).toEqual({ x: 0, y: 4 });
     expect(positionOf(state, 'B1')).toEqual({ x: 8, y: 4 });
-    expect(state.flag).toEqual({ status: 'onGround', position: { x: 4, y: 4 } });
+    expect(state.flag).toEqual({ status: 'hidden', roundsLeft: 2 });
+    expect(state.lastFlagSpawn).toBeNull();
     expect(state.scores).toEqual({ A: 0, B: 0 });
   });
 
@@ -33,16 +34,21 @@ describe('第 7 節：設定檔', () => {
       winningScore: 3,
       knockedDownRounds: 2,
       invulnerableRounds: 2,
-      flagReturnRounds: 2,
+      flagHiddenRounds: 2,
+      flagAnnounceRounds: 2,
       regularMaxRounds: 200,
       overtimeMaxRounds: 50,
       dropFlagWhenHit: true,
+      resetOnScore: false,
+      bots: {
+        attackerAimAtCurrentChance: 0.25,
+        attackerSkipShootingChance: 0.15,
+        flagRunnerStayChance: 0.1,
+      },
     });
-    expect(CTF_CONFIG.flagSpawnOrder).toEqual([
-      { x: 4, y: 4 },
-      { x: 4, y: 2 },
-      { x: 4, y: 6 },
-    ]);
+    // v0.5：「旗子重生等待回合數」和「旗子出現位置的順序」移除
+    expect(CTF_CONFIG).not.toHaveProperty('flagReturnRounds');
+    expect(CTF_CONFIG).not.toHaveProperty('flagSpawnOrder');
     expect(CTF_CONFIG.walls).toHaveLength(6);
   });
 });
@@ -89,7 +95,7 @@ describe('第 3、8 節：核心的要求', () => {
 
 describe('第 8 節：範例 AI 對打一整場', () => {
   it('範例 AI 在新規則下能打完一整場（隨機亂走 vs 直接搶旗）', () => {
-    const bots = { A1: createRandomWalker(1), B1: createFlagRunner() };
+    const bots = { A1: createRandomWalker(1), B1: createFlagRunner(2) };
     let state = createInitialState();
     while (!state.result) {
       const actions = {
