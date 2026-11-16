@@ -1,0 +1,24 @@
+批次對打：AI 一 = Codex（codex），AI 二 = 攻擊（attacker）
+種子 1 到 60（共 60 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：120
+AI 一：勝 111、負 9、平手 0（120 場），勝率 92.5%（平手不算贏）
+  AI 一在 A 隊時：勝 56、負 4、平手 0（60 場）
+  AI 一在 B 隊時：勝 55、負 5、平手 0（60 場）
+平均回合數：92.47
+平均分數：AI 一 2.91、AI 二 1.07
+平均擊倒數：AI 一 3.48、AI 二 1.18
+打到第 200 回合（含）以後才結束：0 場
+每一步花的時間：AI 一 平均 2.745 毫秒、最久 11.770 毫秒；AI 二 平均 0.056 毫秒、最久 0.863 毫秒
+
+AI 一輸掉的前 9 場（可以用後面的指令重看）：
+  種子 5，AI 一在 B 隊 → npm run ctf:match -- attacker codex 5
+  種子 9，AI 一在 A 隊 → npm run ctf:match -- codex attacker 9
+  種子 11，AI 一在 A 隊 → npm run ctf:match -- codex attacker 11
+  種子 17，AI 一在 A 隊 → npm run ctf:match -- codex attacker 17
+  種子 22，AI 一在 B 隊 → npm run ctf:match -- attacker codex 22
+  種子 28，AI 一在 B 隊 → npm run ctf:match -- attacker codex 28
+  種子 32，AI 一在 A 隊 → npm run ctf:match -- codex attacker 32
+  種子 43，AI 一在 B 隊 → npm run ctf:match -- attacker codex 43
+  種子 48，AI 一在 B 隊 → npm run ctf:match -- attacker codex 48
+結果 SHA256: d3f5d8d4226afea46bd88648bdf71f1e4e886cfc599d958a77827d94d0dfa6d6

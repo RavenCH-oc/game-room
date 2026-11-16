@@ -797,13 +797,14 @@ describe('第 4、6 節：每一場的地圖（v0.6）', () => {
 });
 
 describe('第 3 節：開房的對手選單來自 AI 登記表', () => {
-  it('連線一建立就收到 AI 清單，照登記表的順序：攻擊、搶旗、亂走', () => {
+  it('連線一建立就收到 AI 清單，照登記表的順序：攻擊、搶旗、亂走、Codex', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
     expect(a.lastOfType('botList')?.bots).toEqual([
       { id: 'attacker', name: '攻擊' },
       { id: 'runner', name: '搶旗' },
       { id: 'random', name: '亂走' },
+      { id: 'codex', name: 'Codex' },
     ]);
   });
 

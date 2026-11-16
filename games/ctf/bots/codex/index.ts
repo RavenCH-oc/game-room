@@ -12,17 +12,24 @@ export interface StrategyOptions {
   future: number;
   learning: boolean;
   depth?: number;
+  mixed?: boolean;
 }
-export const DEFAULT_STRATEGY: Readonly<StrategyOptions> = { safety: 0.25, future: 1, learning: true, depth: 2 };
+export const DEFAULT_STRATEGY: Readonly<StrategyOptions> = { safety: 0.25, future: 1, learning: true, depth: 2, mixed: true };
 
 export function legalActions(state: PublicGameState, who: Character, geo: Geometry): Action[] {
   if (!who.position) return [{ type: 'stay' }];
   const actions: Action[] = [{ type: 'stay' }];
-  DIRECTIONS.forEach((direction, d) => {
+  const directions = state.map.spawnPoints[who.team].x < state.map.width / 2 ? [0, 1, 2, 3] : [0, 1, 3, 2];
+  directions.forEach(d => {
+    const direction = DIRECTIONS[d]!;
     if (geo.canMove(who.position!, d, who.team)) actions.push({ type: 'move', direction });
   });
   if (state.flag.status === 'carried' && state.flag.carrierId === who.id) actions.push({ type: 'dropFlag' });
-  else DIRECTIONS.forEach(direction => actions.push({ type: 'shoot', direction }));
+  else directions.forEach(d => {
+    const possible = state.characters.some(c => c.team !== who.team && c.position && c.invulnerableRoundsLeft === 0 &&
+      [geo.key(c.position), ...geo.next[geo.key(c.position)]!].some(p => p >= 0 && geo.shots[geo.key(who.position!)]![p] === d));
+    if (possible) actions.push({ type: 'shoot', direction: DIRECTIONS[d]! });
+  });
   return actions;
 }
 
@@ -38,7 +45,7 @@ function goal(state: PublicGameState, who: Character): Position {
 }
 
 /** 對所有可行下一步保留機率，沒有使用對手代號、內部記憶或未結算動作。 */
-function prior(state: PublicGameState, who: Character, rival: Character, actions: Action[], geo: Geometry, aggression: number): number[] {
+function prior(state: PublicGameState, who: Character, rival: Character, actions: Action[], geo: Geometry, aggression: number, inertia = 0): number[] {
   if (!who.position) return [1];
   const target = goal(state, who);
   const distance = geo.distance(who.position, target, who.team);
@@ -75,7 +82,8 @@ function prior(state: PublicGameState, who: Character, rival: Character, actions
   const shootProbability = aggression * shotSum;
   const weights = moves.map((v, i) => (1 - shootProbability) * v / moveSum + aggression * shotWeights[i]! + 0.002);
   const total = weights.reduce((a, b) => a + b, 0);
-  return weights.map(w => w / total);
+  return weights.map((w, i) => (1 - inertia) * w / total + inertia *
+    (actions[i]!.type === 'stay' ? 1 - shootProbability : aggression * shotWeights[i]!));
 }
 
 /** 隱藏旗位絕不進入評分：只推一回合，跨越抽旗邊界後立即遮蔽假的抽樣結果。 */
@@ -145,6 +153,9 @@ export function createCodex(aiSeed: number, config: CtfConfig = CTF_CONFIG, opti
   let previous: { round: number; enemy: Character; self: Character } | undefined;
   let attackEvidence = 3;
   let passiveEvidence = 1;
+  let idleStreak = 0;
+  const visits = new Map<string, number>();
+  const fingerprint = (s: PublicGameState): string => JSON.stringify([s.characters.map(c => [c.position, c.hp, c.invulnerableRoundsLeft, c.respawnCountdown]), s.flag, s.scores, s.knockdowns]);
   return ({ state, selfId }) => {
     const me = state.characters.find(c => c.id === selfId);
     const enemy = state.characters.find(c => c.team !== me?.team);
@@ -152,6 +163,7 @@ export function createCodex(aiSeed: number, config: CtfConfig = CTF_CONFIG, opti
     geo ??= createGeometry(state.map, config.shootRange);
     if (options.learning && previous && previous.round === state.round - 1 && previous.enemy.position && previous.self.position && me.position) {
       const stayed = enemy.position && samePosition(enemy.position, previous.enemy.position);
+      idleStreak = stayed ? idleStreak + 1 : 0;
       if (previous.self.hp > me.hp) attackEvidence += 2;
       else if (geo.shots[geo.key(previous.enemy.position)]![geo.key(previous.self.position)]! >= 0) {
         if (stayed) attackEvidence += 0.2;
@@ -159,44 +171,80 @@ export function createCodex(aiSeed: number, config: CtfConfig = CTF_CONFIG, opti
       }
     }
     previous = { round: state.round, enemy: { ...enemy }, self: { ...me } };
+    const signature = fingerprint(state);
+    visits.set(signature, (visits.get(signature) ?? 0) + 1);
+    const inertia = options.learning ? Math.min(0.9, Math.max(0, idleStreak - 1) * 0.22) : 0;
+    const leading = state.scores[me.team] > state.scores[enemy.team] ||
+      (state.scores[me.team] === state.scores[enemy.team] && state.knockdowns[me.team] > state.knockdowns[enemy.team]);
+    const valueOf = (s: PublicGameState): number => evaluate(s, selfId, geo!, config, options.future) -
+      (leading || s.result ? 0 : Math.min(15, (visits.get(fingerprint(s)) ?? 0) * 0.8));
     const mine = legalActions(state, me, geo);
     const theirs = legalActions(state, enemy, geo);
-    const probabilities = prior(state, enemy, me, theirs, geo, Math.max(0.25, Math.min(0.9, attackEvidence / (attackEvidence + passiveEvidence))));
+    const probabilities = prior(state, enemy, me, theirs, geo, Math.max(0.25, Math.min(0.9, attackEvidence / (attackEvidence + passiveEvidence))), inertia);
     const random = createRoundRandom(aiSeed, state.round, selfId);
     const aggression = Math.max(0.25, Math.min(0.9, attackEvidence / (attackEvidence + passiveEvidence)));
     const combine = (values: number[], weights: number[]): number => (1 - options.safety) *
       values.reduce((sum, v, i) => sum + v * weights[i]!, 0) + options.safety * Math.min(...values);
     const continuation = (node: PublicGameState): number => {
-      if (node.result) return evaluate(node, selfId, geo!, config, options.future);
+      if (node.result) return valueOf(node);
       const self = node.characters.find(c => c.id === selfId)!;
       const opponent = node.characters.find(c => c.id === enemy.id)!;
       const responses = legalActions(node, opponent, geo!);
-      const weights = prior(node, opponent, self, responses, geo!, aggression);
+      const weights = prior(node, opponent, self, responses, geo!, aggression, opponent.position && enemy.position && samePosition(opponent.position, enemy.position) ? inertia : 0);
       let value = -Infinity;
       for (const action of legalActions(node, self, geo!)) {
-        const values = responses.map(response => evaluate(simulatePublic(node, { [selfId]: action, [enemy.id]: response }, config), selfId, geo!, config, options.future));
+        const values = responses.map(response => valueOf(simulatePublic(node, { [selfId]: action, [enemy.id]: response }, config)));
         value = Math.max(value, combine(values, weights));
       }
       return value;
     };
     const rows = mine.map(action => {
       const nodes = theirs.map(response => simulatePublic(state, { [selfId]: action, [enemy.id]: response }, config));
-      const values = nodes.map(node => evaluate(node, selfId, geo!, config, options.future));
+      const values = nodes.map(valueOf);
       return { action, nodes, values, utility: combine(values, probabilities) };
     }).sort((a, b) => b.utility - a.utility);
     let best = -Infinity;
     let chosen: Action = { type: 'stay' };
-    for (const row of rows.slice(0, options.depth === 2 ? 3 : rows.length)) {
+    const candidates = rows.slice(0, options.depth === 2 ? 3 : rows.length);
+    for (const row of candidates) {
       let utility = row.utility;
       if (options.depth === 2) {
         // 只展開最可能的三種回應；其餘保留一層估值，控制每一步成本。
         const likely = probabilities.map((p, i) => ({ p, i })).sort((a, b) => b.p - a.p).slice(0, 3);
         const values = [...row.values];
         for (const { p, i } of likely) if (p > 0.04) values[i] = 0.2 * values[i]! + 0.8 * continuation(row.nodes[i]!);
+        row.values = values;
         utility = combine(values, probabilities);
       }
       utility += random() * 0.15;
       if (utility > best) { best = utility; chosen = row.action; }
+    }
+    if (options.mixed) {
+      // 虛擬對局求混合策略：一部分對手按觀察模型行動，一部分採最不利回應。
+      // 固定迭代次數，抽樣只用 AI 種子；不以時鐘決定搜尋量。
+      const counts = candidates.map(() => 1);
+      const totals = candidates.map(() => 0);
+      for (let iteration = 0; iteration < 96; iteration++) {
+        let worst = 0;
+        let minimum = Infinity;
+        for (let j = 0; j < theirs.length; j++) {
+          const value = candidates.reduce((sum, row, i) => sum + counts[i]! * row.values[j]!, 0);
+          if (value < minimum) { minimum = value; worst = j; }
+        }
+        let selected = 0;
+        for (let i = 0; i < candidates.length; i++) {
+          const values = candidates[i]!.values;
+          totals[i]! += (1 - options.safety) * values.reduce((sum, v, j) => sum + v * probabilities[j]!, 0) + options.safety * values[worst]!;
+          if (totals[i]! > totals[selected]!) selected = i;
+        }
+        counts[selected]!++;
+      }
+      // 初始虛擬次數只供求解，不能變成對明顯劣勢動作的探索機率。
+      let draw = random() * 96;
+      for (let i = 0; i < candidates.length; i++) {
+        draw -= counts[i]! - 1;
+        if (draw < 0) return candidates[i]!.action;
+      }
     }
     return chosen;
   };

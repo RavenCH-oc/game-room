@@ -35,11 +35,12 @@ afterEach(() => {
 });
 
 describe('docs/ctf-bots.md 第 5 節：AI 登記表', () => {
-  it('三個範例 AI 都在登記表裡，代號 attacker、runner、random，照網頁選單的順序', () => {
+  it('三個範例 AI 與 Codex 都在登記表裡，照網頁選單的順序', () => {
     expect(listBots().map((entry) => [entry.id, entry.name])).toEqual([
       ['attacker', '攻擊'],
       ['runner', '搶旗'],
       ['random', '亂走'],
+      ['codex', 'Codex'],
     ]);
   });
 
@@ -52,7 +53,7 @@ describe('docs/ctf-bots.md 第 5 節：AI 登記表', () => {
 
   it('臨時多登記一個 AI：登記表裡有它，移除後就沒有了', () => {
     unregister = registerBot(MEMORY_BOT);
-    expect(listBots().map((entry) => entry.id)).toEqual(['attacker', 'runner', 'random', 'memorytest']);
+    expect(listBots().map((entry) => entry.id)).toEqual(['attacker', 'runner', 'random', 'codex', 'memorytest']);
     expect(findBot('memorytest')).toBe(MEMORY_BOT);
     unregister();
     unregister = null;

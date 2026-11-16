@@ -1,0 +1,25 @@
+批次對打：AI 一 = Codex（codex），AI 二 = depth2（depth2）
+種子 91 到 120（共 30 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：60
+AI 一：勝 7、負 10、平手 43（60 場），勝率 11.7%（平手不算贏）
+  AI 一在 A 隊時：勝 3、負 5、平手 22（30 場）
+  AI 一在 B 隊時：勝 4、負 5、平手 21（30 場）
+平均回合數：235.83
+平均分數：AI 一 0.22、AI 二 0.25
+平均擊倒數：AI 一 3.38、AI 二 3.48
+打到第 200 回合（含）以後才結束：60 場
+每一步花的時間：AI 一 平均 3.165 毫秒、最久 12.444 毫秒；AI 二 平均 6.187 毫秒、最久 18.552 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 93，AI 一在 A 隊 → npm run ctf:match -- codex depth2 93
+  種子 93，AI 一在 B 隊 → npm run ctf:match -- depth2 codex 93
+  種子 106，AI 一在 B 隊 → npm run ctf:match -- depth2 codex 106
+  種子 107，AI 一在 A 隊 → npm run ctf:match -- codex depth2 107
+  種子 109，AI 一在 A 隊 → npm run ctf:match -- codex depth2 109
+  種子 109，AI 一在 B 隊 → npm run ctf:match -- depth2 codex 109
+  種子 116，AI 一在 B 隊 → npm run ctf:match -- depth2 codex 116
+  種子 118，AI 一在 A 隊 → npm run ctf:match -- codex depth2 118
+  種子 120，AI 一在 A 隊 → npm run ctf:match -- codex depth2 120
+  種子 120，AI 一在 B 隊 → npm run ctf:match -- depth2 codex 120
+結果 SHA256: 62848afe1fcd364621ad8483e1d02a5f46e798ee965e672eff0c00f969ec9f37
