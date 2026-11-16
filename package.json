@@ -11,7 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "ctf:match": "node games/ctf/scripts/match.ts",
-    "ctf:map": "node games/ctf/scripts/map.ts"
+    "ctf:map": "node games/ctf/scripts/map.ts",
+    "ctf:tournament": "node games/ctf/scripts/tournament.ts"
   },
   "engines": {
     "node": ">=22.18"

@@ -4,7 +4,7 @@
 // 規則結算一律交給 games/ctf/core/。
 
 import { randomBytes } from 'node:crypto';
-import { createBot as createCtfBot, type BotKind } from '../games/ctf/bots/index.ts';
+import { createBot as createCtfBot, findBot, listBots } from '../games/ctf/bots/index.ts';
 import {
   CLASSIC_MAP_9X9,
   CTF_CONFIG,
@@ -28,7 +28,8 @@ import { ROOM_CODE_LENGTH, ROOM_CODE_LETTERS, SERVER_CONFIG, type ServerConfig }
 import type {
   ClientMessage,
   MatchResult,
-  OpponentKind,
+  BotListItem,
+  OpponentChoice,
   RoomPhase,
   RoomView,
   SeatView,
@@ -45,8 +46,8 @@ export interface ClientConnection {
 
 interface Seat {
   nickname: string;
-  /** AI 才有：哪一種 AI */
-  botKind: BotKind | null;
+  /** AI 才有：AI 登記表裡的代號 */
+  botKind: string | null;
   /** AI 才有：這一場用的 AI（v0.5：每一場開始時用這一場的種子重新建立） */
   bot: Bot | null;
   /** 真人才有：重新整理後回到房間用的通行碼 */
@@ -61,7 +62,7 @@ interface Seat {
 
 interface Room {
   code: string;
-  opponentKind: OpponentKind;
+  opponent: OpponentChoice;
   phase: RoomPhase;
   seats: Record<Team, Seat | null>;
   game: GameState | null;
@@ -93,7 +94,7 @@ export interface RoomManagerOptions {
   /** v0.5：每一場比賽開始時產生種子（0 到 4294967295）。測試可以換掉來指定種子 */
   generateSeed?: () => number;
   /** v0.5：建立 AI 的函式（測試可以換掉，用來確認每一場都重新建立） */
-  createBot?: (kind: BotKind, matchSeed: number, characterId: string, config: CtfConfig) => Bot;
+  createBot?: (botId: string, matchSeed: number, characterId: string, config: CtfConfig) => Bot;
   /** 印訊息到終端機（預設 console.log） */
   log?: (text: string) => void;
   /**
@@ -108,21 +109,6 @@ function randomSeed(): number {
   return randomBytes(4).readUInt32LE(0);
 }
 
-const OPPONENT_KINDS: readonly OpponentKind[] = ['friend', 'aiAttacker', 'aiFlagRunner', 'aiRandomWalker'];
-
-/** AI 對手的顯示名稱 */
-const AI_NAMES: Record<Exclude<OpponentKind, 'friend'>, string> = {
-  aiAttacker: 'AI：攻擊',
-  aiFlagRunner: 'AI：搶旗',
-  aiRandomWalker: 'AI：亂走',
-};
-
-/** 開房選的 AI → 範例 AI 的種類 */
-const AI_KINDS: Record<Exclude<OpponentKind, 'friend'>, BotKind> = {
-  aiAttacker: 'attacker',
-  aiFlagRunner: 'runner',
-  aiRandomWalker: 'random',
-};
 const TEAMS: readonly Team[] = ['A', 'B'];
 
 export class RoomManager {
@@ -160,6 +146,13 @@ export class RoomManager {
 
   addConnection(connection: ClientConnection): void {
     this.connections.set(connection.id, { connection, roomCode: null, team: null });
+    // 開房選單用的 AI 清單，來自 AI 登記表
+    connection.send({ type: 'botList', bots: this.botList() });
+  }
+
+  /** 開房選單用的 AI 清單（照 AI 登記表的順序） */
+  botList(): BotListItem[] {
+    return listBots().map((entry) => ({ id: entry.id, name: entry.name }));
   }
 
   /** 連線中斷（關掉分頁、重新整理、網路斷掉） */
@@ -221,17 +214,22 @@ export class RoomManager {
 
   // ───────── 大廳：開房、加入、重連 ─────────
 
-  private createRoom(record: ConnectionRecord, nickname: string, opponent: OpponentKind): void {
+  private createRoom(record: ConnectionRecord, nickname: string, opponent: OpponentChoice): void {
     if (record.roomCode) return;
     const nicknameError = this.checkNickname(nickname);
     if (nicknameError) return this.sendError(record, nicknameError);
     if (this.rooms.size >= this.config.maxRooms) {
       return this.sendError(record, '目前房間數已經滿了，請稍後再試。');
     }
+    // AI 對手一律到 AI 登記表查
+    const botEntry = opponent.kind === 'ai' ? findBot(opponent.botId) : undefined;
+    if (opponent.kind === 'ai' && !botEntry) {
+      return this.sendError(record, '找不到這個 AI 對手，請重新整理網頁再試一次。');
+    }
 
     const room: Room = {
       code: this.generateRoomCode(),
-      opponentKind: opponent,
+      opponent,
       phase: 'waiting',
       seats: { A: this.createHumanSeat(nickname.trim(), record), B: null },
       game: null,
@@ -248,11 +246,11 @@ export class RoomManager {
     this.rooms.set(room.code, room);
     this.attach(record, room, 'A');
 
-    if (opponent !== 'friend') {
+    if (botEntry) {
       // AI 對手一律是 B 隊，跳過等待。AI 本身在每一場開始時才建立（startCountdown）
       room.seats.B = {
-        nickname: AI_NAMES[opponent],
-        botKind: AI_KINDS[opponent],
+        nickname: `AI：${botEntry.name}`,
+        botKind: botEntry.id,
         bot: null,
         token: null,
         connectionId: null,
@@ -667,7 +665,7 @@ export class RoomManager {
     return {
       roomCode: room.code,
       phase: room.phase,
-      opponentKind: room.opponentKind,
+      opponent: room.opponent,
       yourTeam: team,
       yourCharacterId,
       seats: { A: seatView(room.seats.A), B: seatView(room.seats.B) },
@@ -706,6 +704,16 @@ function parseAction(value: unknown): Action | null {
   }
 }
 
+/** 開房選的對手：只檢查格式；AI 代號有沒有登記，開房時才查（登記表可能在執行中變動，例如測試） */
+function parseOpponent(value: unknown): OpponentChoice | null {
+  if (!isObject(value)) return null;
+  if (value.kind === 'friend') return { kind: 'friend' };
+  if (value.kind === 'ai' && typeof value.botId === 'string' && value.botId.length <= 50) {
+    return { kind: 'ai', botId: value.botId };
+  }
+  return null;
+}
+
 /** 把收到的原始資料轉成訊息；格式不對回傳 null */
 export function parseClientMessage(raw: unknown): ClientMessage | null {
   let data: unknown = raw;
@@ -722,8 +730,11 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
   switch (data.type) {
     case 'createRoom':
       if (typeof data.nickname !== 'string') return null;
-      if (!OPPONENT_KINDS.includes(data.opponent as OpponentKind)) return null;
-      return { type: 'createRoom', nickname: data.nickname, opponent: data.opponent as OpponentKind };
+      {
+        const opponent = parseOpponent(data.opponent);
+        if (!opponent) return null;
+        return { type: 'createRoom', nickname: data.nickname, opponent };
+      }
     case 'joinRoom':
       if (typeof data.nickname !== 'string' || typeof data.roomCode !== 'string') return null;
       return { type: 'joinRoom', nickname: data.nickname, roomCode: data.roomCode };

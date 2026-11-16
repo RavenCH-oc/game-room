@@ -2,7 +2,7 @@
 // 不開瀏覽器、不真的等：用假的連線和 Vitest 的假計時器。
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createBot } from '../../games/ctf/bots/index.ts';
+import { createBot, registerBot } from '../../games/ctf/bots/index.ts';
 import {
   CLASSIC_MAP_9X9,
   CTF_CONFIG,
@@ -65,7 +65,7 @@ type FakeClient = ReturnType<typeof fakeClient>;
 /** 開一間「等朋友」的房，再讓另一人加入，回傳兩個人 */
 function startFriendMatch(manager: RoomManager): { a: FakeClient; b: FakeClient; code: string } {
   const a = fakeClient(manager);
-  a.send({ type: 'createRoom', nickname: '小明', opponent: 'friend' });
+  a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'friend' } });
   const code = a.lastRoom().roomCode;
   const b = fakeClient(manager);
   b.send({ type: 'joinRoom', nickname: '小華', roomCode: code });
@@ -99,7 +99,7 @@ describe('第 3 節：開房與加入', () => {
   it('開房：拿到 4 碼房號（大寫、沒有 I 和 O），開房的人是 A 隊，等待朋友', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'friend' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'friend' } });
 
     const joined = a.lastOfType('joined');
     expect(joined?.team).toBe('A');
@@ -118,7 +118,7 @@ describe('第 3 節：開房與加入', () => {
   it('房號小寫也能加入', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'friend' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'friend' } });
     const b = fakeClient(manager);
     b.send({ type: 'joinRoom', nickname: '小華', roomCode: a.lastRoom().roomCode.toLowerCase() });
     expect(b.lastOfType('joined')?.team).toBe('B');
@@ -144,7 +144,7 @@ describe('第 3 節：開房與加入', () => {
   it('AI 房間不能再加入（AI 已經佔了 B 隊）', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiFlagRunner' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'runner' } });
     const c = fakeClient(manager);
     c.send({ type: 'joinRoom', nickname: '小美', roomCode: a.lastRoom().roomCode });
     expect(c.lastOfType('error')?.message).toContain('滿');
@@ -153,22 +153,22 @@ describe('第 3 節：開房與加入', () => {
   it('暱稱要 1 到 12 個字', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '   ', opponent: 'friend' });
+    a.send({ type: 'createRoom', nickname: '   ', opponent: { kind: 'friend' } });
     expect(a.lastOfType('error')?.message).toContain('暱稱');
-    a.send({ type: 'createRoom', nickname: '一二三四五六七八九十一二三', opponent: 'friend' });
+    a.send({ type: 'createRoom', nickname: '一二三四五六七八九十一二三', opponent: { kind: 'friend' } });
     expect(a.lastOfType('error')?.message).toContain('暱稱');
-    a.send({ type: 'createRoom', nickname: '一二三四五六七八九十一二', opponent: 'friend' });
+    a.send({ type: 'createRoom', nickname: '一二三四五六七八九十一二', opponent: { kind: 'friend' } });
     expect(a.lastOfType('joined')).toBeDefined();
   });
 
   it('同時房間數上限 50', () => {
     const manager = classicManager();
     for (let index = 0; index < SERVER_CONFIG.maxRooms; index++) {
-      fakeClient(manager).send({ type: 'createRoom', nickname: `玩家${index}`, opponent: 'friend' });
+      fakeClient(manager).send({ type: 'createRoom', nickname: `玩家${index}`, opponent: { kind: 'friend' } });
     }
     expect(manager.roomCount).toBe(50);
     const late = fakeClient(manager);
-    late.send({ type: 'createRoom', nickname: '晚到', opponent: 'friend' });
+    late.send({ type: 'createRoom', nickname: '晚到', opponent: { kind: 'friend' } });
     expect(late.lastOfType('error')).toBeDefined();
     expect(manager.roomCount).toBe(50);
   });
@@ -178,7 +178,7 @@ describe('第 4 節：房間流程', () => {
   it('兩邊到齊才開始：只有開房的人時一直等待', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'friend' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'friend' } });
     vi.advanceTimersByTime(60_000);
     expect(a.lastRoom().phase).toBe('waiting');
   });
@@ -197,7 +197,7 @@ describe('第 4 節：房間流程', () => {
   it('對 AI 直接開始：跳過等待，AI 是 B 隊', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiRandomWalker' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'random' } });
     const room = a.lastRoom();
     expect(room.phase).toBe('countdown');
     expect(room.seats.B).toMatchObject({ isAi: true });
@@ -208,7 +208,7 @@ describe('第 4 節：房間流程', () => {
   it('開房可以選「AI：攻擊」', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiAttacker' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'attacker' } });
     expect(a.lastRoom().seats.B).toMatchObject({ nickname: 'AI：攻擊', isAi: true });
     vi.advanceTimersByTime(COUNTDOWN_MS);
     actionFor(a, { type: 'stay' });
@@ -219,7 +219,7 @@ describe('第 4 節：房間流程', () => {
   it('對 AI：AI 每回合由伺服器呼叫腳本出手', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiFlagRunner' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'runner' } });
     vi.advanceTimersByTime(COUNTDOWN_MS);
     actionFor(a, { type: 'stay' }); // 唯一的真人送出 → 立刻結算
     const room = a.lastRoom();
@@ -231,7 +231,7 @@ describe('第 4 節：房間流程', () => {
   it('等待中按「取消」：房間刪除', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'friend' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'friend' } });
     a.send({ type: 'leaveRoom' });
     expect(manager.roomCount).toBe(0);
     expect(a.lastOfType('leftRoom')).toBeDefined();
@@ -363,7 +363,7 @@ describe('第 5 節：比賽中的回合', () => {
     it('對 AI、真人倒地中：等滿 1.5 秒才結算，不會立刻結算', () => {
       const manager = classicManager({ ctfConfig: quickKnockConfig, fixedMap: SPAWNS_SIDE_BY_SIDE });
       const a = fakeClient(manager);
-      a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiAttacker' });
+      a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'attacker' } });
       vi.advanceTimersByTime(COUNTDOWN_MS);
       actionFor(a, { type: 'stay' }); // 攻擊 AI 就在旁邊，會開槍打倒 A
       expect(a.lastRoom().game!.characters[0]!.position).toBeNull();
@@ -465,8 +465,10 @@ describe('第 5 節：亂七八糟的訊息', () => {
     const manager = classicManager();
     const { a } = startPlaying(manager);
     const stranger = fakeClient(manager);
+    // 連線一建立會先收到 AI 清單；之後送動作不會收到任何回應
+    const before = stranger.messages.length;
     stranger.send({ type: 'action', round: 1, action: { type: 'move', direction: 'right' } });
-    expect(stranger.messages).toEqual([]);
+    expect(stranger.messages.length).toBe(before);
     expect(a.lastRoom().opponentReady).toBe(false);
   });
 });
@@ -529,7 +531,7 @@ describe('第 7 節：斷線', () => {
   it('對 AI 時斷線超過 30 秒：房間刪除', () => {
     const manager = classicManager();
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiFlagRunner' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'runner' } });
     vi.advanceTimersByTime(COUNTDOWN_MS);
     a.disconnect();
     vi.advanceTimersByTime(GRACE_MS);
@@ -592,7 +594,7 @@ describe('第 4 節：結束後', () => {
   it('再來一場：對 AI 按了就重新開始', () => {
     const manager = classicManager({ ctfConfig: shortConfig });
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiRandomWalker' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'random' } });
     vi.advanceTimersByTime(COUNTDOWN_MS + ROUND_MS * 2);
     expect(a.lastRoom().phase).toBe('finished');
     a.send({ type: 'rematch' });
@@ -703,7 +705,7 @@ describe('第 4、5 節：每一場比賽的種子（v0.5）', () => {
       log: (text) => logs.push(text),
     });
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiAttacker' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'attacker' } });
     const code = a.lastRoom().roomCode;
     vi.advanceTimersByTime(COUNTDOWN_MS + ROUND_MS * 2);
     expect(a.lastRoom()).toMatchObject({ phase: 'finished', seed: 111 });
@@ -768,7 +770,7 @@ describe('第 4、6 節：每一場的地圖（v0.6）', () => {
     const seeds = [1, 2];
     const manager = new RoomManager({ ctfConfig: shortConfig, generateSeed: () => seeds.shift()! });
     const a = fakeClient(manager);
-    a.send({ type: 'createRoom', nickname: '小明', opponent: 'aiFlagRunner' });
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'runner' } });
     const firstMap = a.lastRoom().game!.map;
     vi.advanceTimersByTime(COUNTDOWN_MS + ROUND_MS * 2);
     expect(a.lastRoom().phase).toBe('finished');
@@ -791,5 +793,56 @@ describe('第 4、6 節：每一場的地圖（v0.6）', () => {
       expect(room.seed).toBeNull();
       expect(room.game).not.toHaveProperty('rngState');
     }
+  });
+});
+
+describe('第 3 節：開房的對手選單來自 AI 登記表', () => {
+  it('連線一建立就收到 AI 清單，照登記表的順序：攻擊、搶旗、亂走', () => {
+    const manager = classicManager();
+    const a = fakeClient(manager);
+    expect(a.lastOfType('botList')?.bots).toEqual([
+      { id: 'attacker', name: '攻擊' },
+      { id: 'runner', name: '搶旗' },
+      { id: 'random', name: '亂走' },
+    ]);
+  });
+
+  it('對手選單：在 AI 登記表多登記一個測試用的 AI 時，伺服器接受用它開房間，而且送給網頁的 AI 清單裡有它', () => {
+    let calls = 0;
+    const unregister = registerBot({
+      id: 'servertest',
+      name: '伺服器測試',
+      create: () => () => {
+        calls += 1;
+        return { type: 'stay' };
+      },
+    });
+    try {
+      const manager = classicManager();
+      const a = fakeClient(manager);
+      expect(a.lastOfType('botList')?.bots.at(-1)).toEqual({ id: 'servertest', name: '伺服器測試' });
+
+      a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'servertest' } });
+      expect(a.lastOfType('error')).toBeUndefined();
+      expect(a.lastRoom()).toMatchObject({
+        phase: 'countdown',
+        opponent: { kind: 'ai', botId: 'servertest' },
+        seats: { B: { nickname: 'AI：伺服器測試', isAi: true } },
+      });
+      vi.advanceTimersByTime(COUNTDOWN_MS + ROUND_MS);
+      expect(a.lastRoom().game!.round).toBe(1);
+      expect(calls).toBe(1); // 伺服器在結算時呼叫了這個 AI
+    } finally {
+      unregister();
+    }
+  });
+
+  it('沒登記的 AI 代號：開房失敗，顯示白話的錯誤訊息，留在大廳', () => {
+    const manager = classicManager();
+    const a = fakeClient(manager);
+    a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'nobody' } });
+    expect(a.lastOfType('error')?.message).toContain('找不到這個 AI 對手');
+    expect(a.lastOfType('room')).toBeUndefined();
+    expect(manager.roomCount).toBe(0);
   });
 });
