@@ -1,0 +1,13 @@
+
+> game-room@0.1.0 test
+> vitest run
+
+
+ RUN  v5.1.0 D:/codex/game-room
+
+
+ Test Files  12 passed (12)
+      Tests  237 passed (237)
+   Start at  20:07:02
+   Duration  13.94s (tests 95%, transform 3%, import 2%)
+

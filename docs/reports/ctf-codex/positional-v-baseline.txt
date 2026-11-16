@@ -1,0 +1,25 @@
+批次對打：AI 一 = positional（positional），AI 二 = baseline（baseline）
+種子 91 到 110（共 20 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：40
+AI 一：勝 13、負 19、平手 8（40 場），勝率 32.5%（平手不算贏）
+  AI 一在 A 隊時：勝 7、負 9、平手 4（20 場）
+  AI 一在 B 隊時：勝 6、負 10、平手 4（20 場）
+平均回合數：197.50
+平均分數：AI 一 1.30、AI 二 1.60
+平均擊倒數：AI 一 2.25、AI 二 2.27
+打到第 200 回合（含）以後才結束：28 場
+每一步花的時間：AI 一 平均 5.091 毫秒、最久 13.358 毫秒；AI 二 平均 1.122 毫秒、最久 3.952 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 91，AI 一在 A 隊 → npm run ctf:match -- positional baseline 91
+  種子 91，AI 一在 B 隊 → npm run ctf:match -- baseline positional 91
+  種子 92，AI 一在 A 隊 → npm run ctf:match -- positional baseline 92
+  種子 93，AI 一在 A 隊 → npm run ctf:match -- positional baseline 93
+  種子 93，AI 一在 B 隊 → npm run ctf:match -- baseline positional 93
+  種子 95，AI 一在 A 隊 → npm run ctf:match -- positional baseline 95
+  種子 95，AI 一在 B 隊 → npm run ctf:match -- baseline positional 95
+  種子 97，AI 一在 A 隊 → npm run ctf:match -- positional baseline 97
+  種子 97，AI 一在 B 隊 → npm run ctf:match -- baseline positional 97
+  種子 99，AI 一在 A 隊 → npm run ctf:match -- positional baseline 99
+結果 SHA256: 3257dc34ff9157aa3d142df2e21b1882737bdacb89596a9cab3b430cfaf4ab77

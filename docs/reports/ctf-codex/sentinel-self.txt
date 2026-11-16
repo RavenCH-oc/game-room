@@ -1,0 +1,25 @@
+批次對打：AI 一 = sentinel（sentinel），AI 二 = sentinel（sentinel）
+種子 61 到 80（共 20 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：40
+AI 一：勝 15、負 15、平手 10（40 場），勝率 37.5%（平手不算贏）
+  AI 一在 A 隊時：勝 6、負 9、平手 5（20 場）
+  AI 一在 B 隊時：勝 9、負 6、平手 5（20 場）
+平均回合數：192.50
+平均分數：AI 一 1.25、AI 二 1.25
+平均擊倒數：AI 一 2.58、AI 二 2.58
+打到第 200 回合（含）以後才結束：28 場
+每一步花的時間：AI 一 平均 3.480 毫秒、最久 11.494 毫秒；AI 二 平均 3.487 毫秒、最久 11.060 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 61，AI 一在 A 隊 → npm run ctf:match -- sentinel sentinel 61
+  種子 62，AI 一在 A 隊 → npm run ctf:match -- sentinel sentinel 62
+  種子 63，AI 一在 B 隊 → npm run ctf:match -- sentinel sentinel 63
+  種子 64，AI 一在 B 隊 → npm run ctf:match -- sentinel sentinel 64
+  種子 66，AI 一在 A 隊 → npm run ctf:match -- sentinel sentinel 66
+  種子 67，AI 一在 A 隊 → npm run ctf:match -- sentinel sentinel 67
+  種子 68，AI 一在 A 隊 → npm run ctf:match -- sentinel sentinel 68
+  種子 69，AI 一在 A 隊 → npm run ctf:match -- sentinel sentinel 69
+  種子 71，AI 一在 A 隊 → npm run ctf:match -- sentinel sentinel 71
+  種子 72，AI 一在 B 隊 → npm run ctf:match -- sentinel sentinel 72
+結果 SHA256: 163e6478de9b55b987ebef61e4f8be839548534dddbec88acbce2848f608731e

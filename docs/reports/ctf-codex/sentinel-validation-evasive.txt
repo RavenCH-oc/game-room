@@ -1,0 +1,18 @@
+批次對打：AI 一 = sentinel（sentinel），AI 二 = evasive（evasive）
+種子 1061 到 1090（共 30 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：60
+AI 一：勝 55、負 3、平手 2（60 場），勝率 91.7%（平手不算贏）
+  AI 一在 A 隊時：勝 28、負 0、平手 2（30 場）
+  AI 一在 B 隊時：勝 27、負 3、平手 0（30 場）
+平均回合數：177.97
+平均分數：AI 一 1.53、AI 二 0.30
+平均擊倒數：AI 一 0.00、AI 二 0.05
+打到第 200 回合（含）以後才結束：48 場
+每一步花的時間：AI 一 平均 3.115 毫秒、最久 10.225 毫秒；AI 二 平均 0.006 毫秒、最久 2.108 毫秒
+
+AI 一輸掉的前 3 場（可以用後面的指令重看）：
+  種子 1062，AI 一在 B 隊 → npm run ctf:match -- evasive sentinel 1062
+  種子 1072，AI 一在 B 隊 → npm run ctf:match -- evasive sentinel 1072
+  種子 1086，AI 一在 B 隊 → npm run ctf:match -- evasive sentinel 1086
+結果 SHA256: 364dba9a4de04599edf06439d08c716ee727ca743370a27647cde5f6aec2e3ca

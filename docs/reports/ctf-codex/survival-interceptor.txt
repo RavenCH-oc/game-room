@@ -1,0 +1,25 @@
+批次對打：AI 一 = survival（survival），AI 二 = interceptor（interceptor）
+種子 91 到 120（共 30 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：60
+AI 一：勝 27、負 22、平手 11（60 場），勝率 45.0%（平手不算贏）
+  AI 一在 A 隊時：勝 12、負 13、平手 5（30 場）
+  AI 一在 B 隊時：勝 15、負 9、平手 6（30 場）
+平均回合數：206.10
+平均分數：AI 一 1.10、AI 二 1.08
+平均擊倒數：AI 一 0.78、AI 二 0.90
+打到第 200 回合（含）以後才結束：52 場
+每一步花的時間：AI 一 平均 4.620 毫秒、最久 12.154 毫秒；AI 二 平均 0.013 毫秒、最久 2.047 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 92，AI 一在 A 隊 → npm run ctf:match -- survival interceptor 92
+  種子 92，AI 一在 B 隊 → npm run ctf:match -- interceptor survival 92
+  種子 93，AI 一在 A 隊 → npm run ctf:match -- survival interceptor 93
+  種子 93，AI 一在 B 隊 → npm run ctf:match -- interceptor survival 93
+  種子 99，AI 一在 B 隊 → npm run ctf:match -- interceptor survival 99
+  種子 100，AI 一在 A 隊 → npm run ctf:match -- survival interceptor 100
+  種子 102，AI 一在 A 隊 → npm run ctf:match -- survival interceptor 102
+  種子 102，AI 一在 B 隊 → npm run ctf:match -- interceptor survival 102
+  種子 103，AI 一在 A 隊 → npm run ctf:match -- survival interceptor 103
+  種子 105，AI 一在 A 隊 → npm run ctf:match -- survival interceptor 105
+結果 SHA256: 148b3c89f9aec11651203563f2c4c443744fa24cf587cd04b817d62a7e0e838a

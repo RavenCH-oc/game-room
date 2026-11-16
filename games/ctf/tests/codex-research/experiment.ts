@@ -1,5 +1,5 @@
 // 獨立研究入口；正式對戰工具與計分完全不變。
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { cpus, release } from 'node:os';
 import { createCodex } from '../../bots/codex/index.ts';
@@ -8,6 +8,9 @@ import { createCodex as createDepth2 } from './depth2.ts';
 import { createCodex as createMixed } from './mixed.ts';
 import { createCodex as createAdaptive } from './adaptive.ts';
 import { createCodex as createSurvival } from './survival.ts';
+import { createCodex as createPositional } from './positional.ts';
+import { createCodex as createSentinel } from './sentinel.ts';
+import { createCodex as createRoute } from './route.ts';
 import { createSparring } from './sparring.ts';
 import { registerBot } from '../../bots/index.ts';
 import { CTF_CONFIG } from '../../core/index.ts';
@@ -26,6 +29,9 @@ registerBot({ id: 'depth2', name: 'depth2', create: ({ aiSeed, config }) => crea
 registerBot({ id: 'mixed', name: 'mixed', create: ({ aiSeed, config }) => createMixed(aiSeed, config) });
 registerBot({ id: 'adaptive', name: 'adaptive', create: ({ aiSeed, config }) => createAdaptive(aiSeed, config) });
 registerBot({ id: 'survival', name: 'survival', create: ({ aiSeed, config }) => createSurvival(aiSeed, config) });
+registerBot({ id: 'positional', name: 'positional', create: ({ aiSeed, config }) => createPositional(aiSeed, config) });
+registerBot({ id: 'sentinel', name: 'sentinel', create: ({ aiSeed, config }) => createSentinel(aiSeed, config) });
+registerBot({ id: 'route', name: 'route', create: ({ aiSeed, config }) => createRoute(aiSeed, config) });
 for (const style of ['defender', 'interceptor', 'evasive'] as const) {
   registerBot({ id: style, name: style, create: ({ aiSeed, config }) => createSparring(style, aiSeed, config) });
 }
@@ -33,6 +39,9 @@ const [one = 'codex', two = 'attacker', count = '30', start = '1', label = 'tria
 const config = { ...CTF_CONFIG, ...(balance === 'reset' ? { resetOnScore: true } : {}),
   ...(balance === 'nodrop' ? { dropFlagWhenHit: false } : {}) };
 const sourceHash = createHash('sha256').update(readFileSync('games/ctf/bots/codex/index.ts')).digest('hex');
+const sourceFiles = ['games/ctf/bots/codex/index.ts', 'games/ctf/bots/codex/geometry.ts',
+  ...readdirSync('games/ctf/tests/codex-research').filter(f => f.endsWith('.ts')).map(f => `games/ctf/tests/codex-research/${f}`)];
+const sourceHashes = Object.fromEntries(sourceFiles.map(f => [f, createHash('sha256').update(readFileSync(f)).digest('hex')]));
 const result = runTournament({ botOne: one, botTwo: two, seedCount: Number(count), startSeed: Number(start), config });
 const lines = formatTournament(result);
 const folder = 'docs/reports/ctf-codex';
@@ -41,5 +50,5 @@ const records = result.matches.map(m => ({ seed: m.seed, team: m.botOneTeam, out
   round: m.final.round, scores: m.final.scores, knockdowns: m.final.knockdowns, result: m.final.result }));
 const hash = createHash('sha256').update(JSON.stringify(records)).digest('hex');
 writeFileSync(`${folder}/${label}.txt`, lines.join('\n') + `\n結果 SHA256: ${hash}\n`);
-writeFileSync(`${folder}/${label}.json`, JSON.stringify({ sourceHash, environment: { node: process.version, platform: process.platform, os: release(), cpu: cpus()[0]?.model }, options: result.options, timing: result.timing, hash, records }, null, 2));
+writeFileSync(`${folder}/${label}.json`, JSON.stringify({ sourceHash, sourceHashes, environment: { node: process.version, platform: process.platform, os: release(), cpu: cpus()[0]?.model }, options: result.options, timing: result.timing, hash, records }, null, 2));
 console.log(lines.join('\n'));

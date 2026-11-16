@@ -12,4 +12,13 @@
 - 第四階段進行中：學習對手連續不動的傾向，對平分/落後時的重複公開局面減分；正在跑 adaptive-*。
 - 實驗檔案勘誤：最初一串命令執行途中完成改版，因此原標 depth2-evasive、depth2-self 實際跑到 mixed 版，已更名 mixed-evasive、mixed-self-repeat。後者與 mixed-self 結果雜湊相同。沒有刪除不利結果；今後記錄 sourceHash 並在整批完成前不改正式策略。
 - 合規測試初版 8 項全過（包含 50 場合法性、六組整場重播）；改進後另重新跑鏡射與低血量得分情境通過，最終還需完整重跑。
+- 後續結果：adaptive 雖對 attacker 119/120，但自我對戰 38/60 平，對 depth2 7 勝 10 負 43 平。survival 增加自身生命價值並辨識雙方同步擊倒循環，對 attacker/runner 各 120/120、自我對戰 22/60 平，對 baseline 20 勝 31 負 9 平、depth2 6 勝 36 負 18 平。不能只看範例勝率選版。
+- positional（可安全移動空間評分、四個候選）自我對戰 22/40 平，沒有採用。
+- sentinel 在 survival 基礎上，對公開位置長期不動的對手，提高可命中路線的開槍機率估計。開發小樣本對 baseline 20 勝 17 負 3 平、自我對戰 10/40 平、attacker 60/60。正在跑 sentinel-v-depth2 / v-survival / defender / interceptor 與獨立驗證。每版獨立檔案，避免前面排程標籤混淆。
+- survival 的獨立驗證：attacker 118/120、runner 120/120（1001–1060），defender 53 勝 0 負 7 平（1061–1090）。不是最終成績。
+- npm test 中期全部通過：12 檔、237 項；原始輸出 interim-tests.txt。最終凍結後需重跑。
+- 最終選擇 sentinel（正式 codex 已複製同邏輯，只有 import 路徑與註解不同）。它並非每種對手都最強：對 depth2 11 勝 25 負 4 平，對 survival 13 勝 22 負 5 平；但對 defender 51 勝 0 負 9 平、interceptor 36 勝 20 負 4 平，且減少自我對戰僵局。選擇多種風格整體折衷，必須揭露舊版克制問題。
+- sentinel 驗證：attacker 118/120、runner 120/120（1001–1060）；evasive 55 勝 3 負 2 平（1061–1090）。
+- 路線風險加權 route 是最後一個探索方向；對 depth2 僅 3 勝 25 負 12 平，不採用，剩餘排程跑完保留完整紀錄。
+- 策略已凍結：接下來只做驗證、報告、必要修錯；保留種子 100001–100500 尚未使用。完整 attacker/runner 各 500 種子；陪練/自我/舊版各 50 保留種子。若最終未達標照實報告，不拿保留局調參。
 - 恢復時：先讀規則與本文件，檢查 git status/log，再看 experiment.ts 與各結果，不要重寫基準。

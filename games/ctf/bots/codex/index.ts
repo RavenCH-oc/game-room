@@ -16,6 +16,7 @@ export interface StrategyOptions {
 }
 export const DEFAULT_STRATEGY: Readonly<StrategyOptions> = { safety: 0.25, future: 1, learning: true, depth: 2, mixed: true };
 
+/** 合法候選；必定打不到人的射擊和不動等價，先剪除以節省推演。 */
 export function legalActions(state: PublicGameState, who: Character, geo: Geometry): Action[] {
   if (!who.position) return [{ type: 'stay' }];
   const actions: Action[] = [{ type: 'stay' }];
@@ -79,11 +80,12 @@ function prior(state: PublicGameState, who: Character, rival: Character, actions
   }
   const shotSum = shotWeights.reduce((a, b) => a + b, 0);
   const moveSum = moves.reduce((a, b) => a + b, 0) || 1;
-  const shootProbability = aggression * shotSum;
-  const weights = moves.map((v, i) => (1 - shootProbability) * v / moveSum + aggression * shotWeights[i]! + 0.002);
+  // 公開位置連續不變時，不能假設守方會放棄封鎖可能進入的射線。
+  const shootProbability = inertia > 0.4 && shotSum > 0 ? 0.95 : aggression * shotSum;
+  const weights = moves.map((v, i) => (1 - shootProbability) * v / moveSum + shootProbability * shotWeights[i]! / (shotSum || 1) + 0.002);
   const total = weights.reduce((a, b) => a + b, 0);
   return weights.map((w, i) => (1 - inertia) * w / total + inertia *
-    (actions[i]!.type === 'stay' ? 1 - shootProbability : aggression * shotWeights[i]!));
+    (actions[i]!.type === 'stay' ? 1 - shootProbability : shootProbability * shotWeights[i]! / (shotSum || 1)));
 }
 
 /** 隱藏旗位絕不進入評分：只推一回合，跨越抽旗邊界後立即遮蔽假的抽樣結果。 */
@@ -106,7 +108,8 @@ function evaluate(state: PublicGameState, selfId: string, geo: Geometry, config:
   if (state.result) return state.result.winner === team ? 10000 : state.result.winner === null ? 0 : -10000;
   let value = 220 * (state.scores[team] - state.scores[other]) + 24 * (state.knockdowns[team] - state.knockdowns[other]);
   const health = (c: Character): number => c.position ? 9 * c.hp + 3 * c.invulnerableRoundsLeft : -12 - c.respawnCountdown * 2;
-  value += health(me) - health(enemy);
+  // 同血量互換傷害不是免費收益，略偏重自身存活，減少重生後重複互殺。
+  value += 1.3 * health(me) - health(enemy);
   const flag = state.flag;
   const distance = (c: Character, p: Position): number => c.position ? geo.distance(c.position, p, c.team) :
     c.respawnCountdown + geo.distance(state.map.spawnPoints[c.team], p, c.team);
@@ -155,7 +158,7 @@ export function createCodex(aiSeed: number, config: CtfConfig = CTF_CONFIG, opti
   let passiveEvidence = 1;
   let idleStreak = 0;
   const visits = new Map<string, number>();
-  const fingerprint = (s: PublicGameState): string => JSON.stringify([s.characters.map(c => [c.position, c.hp, c.invulnerableRoundsLeft, c.respawnCountdown]), s.flag, s.scores, s.knockdowns]);
+  const fingerprint = (s: PublicGameState): string => JSON.stringify([s.characters.map(c => [c.position, c.hp, c.invulnerableRoundsLeft, c.respawnCountdown]), s.flag, s.scores, s.knockdowns.A - s.knockdowns.B]);
   return ({ state, selfId }) => {
     const me = state.characters.find(c => c.id === selfId);
     const enemy = state.characters.find(c => c.team !== me?.team);
@@ -177,7 +180,7 @@ export function createCodex(aiSeed: number, config: CtfConfig = CTF_CONFIG, opti
     const leading = state.scores[me.team] > state.scores[enemy.team] ||
       (state.scores[me.team] === state.scores[enemy.team] && state.knockdowns[me.team] > state.knockdowns[enemy.team]);
     const valueOf = (s: PublicGameState): number => evaluate(s, selfId, geo!, config, options.future) -
-      (leading || s.result ? 0 : Math.min(15, (visits.get(fingerprint(s)) ?? 0) * 0.8));
+      (leading || s.result ? 0 : Math.min(24, (visits.get(fingerprint(s)) ?? 0) * 1.2));
     const mine = legalActions(state, me, geo);
     const theirs = legalActions(state, enemy, geo);
     const probabilities = prior(state, enemy, me, theirs, geo, Math.max(0.25, Math.min(0.9, attackEvidence / (attackEvidence + passiveEvidence))), inertia);
@@ -249,3 +252,7 @@ export function createCodex(aiSeed: number, config: CtfConfig = CTF_CONFIG, opti
     return chosen;
   };
 }
+
+
+
+

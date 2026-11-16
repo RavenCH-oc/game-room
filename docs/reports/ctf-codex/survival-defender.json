@@ -1,0 +1,1142 @@
+{
+  "sourceHash": "cef0d5541aa9094053b5fa7f3e00470446774d16fba392a1d8bb5d897c5380b8",
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "win32",
+    "os": "10.0.26200",
+    "cpu": "AMD Ryzen 7 9850X3D 8-Core Processor           "
+  },
+  "options": {
+    "botOne": "survival",
+    "botTwo": "defender",
+    "seedCount": 30,
+    "startSeed": 61,
+    "config": {
+      "boardWidth": 11,
+      "boardHeight": 11,
+      "roundSeconds": 3,
+      "shootRange": 3,
+      "maxHp": 3,
+      "shotDamage": 1,
+      "winningScore": 3,
+      "knockedDownRounds": 2,
+      "invulnerableRounds": 2,
+      "flagHiddenRounds": 2,
+      "flagAnnounceRounds": 2,
+      "regularMaxRounds": 200,
+      "overtimeMaxRounds": 50,
+      "dropFlagWhenHit": true,
+      "resetOnScore": false,
+      "bots": {
+        "attackerAimAtCurrentChance": 0.25,
+        "attackerSkipShootingChance": 0.15,
+        "flagRunnerStayChance": 0.1
+      },
+      "map": {
+        "mirror": true,
+        "minWalls": 14,
+        "maxWalls": 18,
+        "maxSegmentLength": 3,
+        "spawnClearance": 2,
+        "minOpenMidlineCells": 7,
+        "maxPlacementAttempts": 200,
+        "maxMapDraws": 1000
+      }
+    }
+  },
+  "timing": {
+    "botOne": {
+      "steps": 11705,
+      "totalMs": 52868.34350000026,
+      "maxMs": 11.396199999999226
+    },
+    "botTwo": {
+      "steps": 11705,
+      "totalMs": 122.04200000006307,
+      "maxMs": 2.6192999999999955
+    }
+  },
+  "hash": "1e8c13721f4ae17410c6104aebf6bfec5c2feec06db7d3bfad8407aca5c3cf93",
+  "records": [
+    {
+      "seed": 61,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 61,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 62,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 62,
+      "team": "B",
+      "outcome": "win",
+      "round": 78,
+      "scores": {
+        "A": 1,
+        "B": 3
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "B",
+        "reason": "reachedWinningScore"
+      }
+    },
+    {
+      "seed": 63,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 63,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 2,
+        "B": 2
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 64,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 2,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 64,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 2
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 65,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 2,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 65,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 66,
+      "team": "A",
+      "outcome": "draw",
+      "round": 250,
+      "scores": {
+        "A": 0,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": null,
+        "reason": "draw"
+      }
+    },
+    {
+      "seed": 66,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 67,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 67,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 68,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 2,
+        "B": 2
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 68,
+      "team": "B",
+      "outcome": "win",
+      "round": 201,
+      "scores": {
+        "A": 1,
+        "B": 2
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "B",
+        "reason": "overtimeScore"
+      }
+    },
+    {
+      "seed": 69,
+      "team": "A",
+      "outcome": "win",
+      "round": 61,
+      "scores": {
+        "A": 3,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "reachedWinningScore"
+      }
+    },
+    {
+      "seed": 69,
+      "team": "B",
+      "outcome": "win",
+      "round": 91,
+      "scores": {
+        "A": 0,
+        "B": 3
+      },
+      "knockdowns": {
+        "A": 2,
+        "B": 2
+      },
+      "result": {
+        "winner": "B",
+        "reason": "reachedWinningScore"
+      }
+    },
+    {
+      "seed": 70,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 2,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 70,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 71,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 71,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 2
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 72,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 2,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 72,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 73,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 73,
+      "team": "B",
+      "outcome": "draw",
+      "round": 250,
+      "scores": {
+        "A": 2,
+        "B": 2
+      },
+      "knockdowns": {
+        "A": 3,
+        "B": 3
+      },
+      "result": {
+        "winner": null,
+        "reason": "draw"
+      }
+    },
+    {
+      "seed": 74,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 2,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 74,
+      "team": "B",
+      "outcome": "draw",
+      "round": 250,
+      "scores": {
+        "A": 1,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": null,
+        "reason": "draw"
+      }
+    },
+    {
+      "seed": 75,
+      "team": "A",
+      "outcome": "win",
+      "round": 66,
+      "scores": {
+        "A": 3,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "reachedWinningScore"
+      }
+    },
+    {
+      "seed": 75,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 76,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 2,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 76,
+      "team": "B",
+      "outcome": "draw",
+      "round": 250,
+      "scores": {
+        "A": 0,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": null,
+        "reason": "draw"
+      }
+    },
+    {
+      "seed": 77,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 77,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 2
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 78,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 2,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 3,
+        "B": 3
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 78,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 2
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 79,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 79,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 80,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 80,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 81,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 81,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 82,
+      "team": "A",
+      "outcome": "loss",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 2,
+        "B": 2
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 82,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 83,
+      "team": "A",
+      "outcome": "win",
+      "round": 90,
+      "scores": {
+        "A": 3,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "A",
+        "reason": "reachedWinningScore"
+      }
+    },
+    {
+      "seed": 83,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 84,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 2,
+        "B": 2
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 84,
+      "team": "B",
+      "outcome": "draw",
+      "round": 250,
+      "scores": {
+        "A": 0,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": null,
+        "reason": "draw"
+      }
+    },
+    {
+      "seed": 85,
+      "team": "A",
+      "outcome": "draw",
+      "round": 250,
+      "scores": {
+        "A": 0,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": null,
+        "reason": "draw"
+      }
+    },
+    {
+      "seed": 85,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 2,
+        "B": 2
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 86,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 2,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 3,
+        "B": 3
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 86,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 2
+      },
+      "knockdowns": {
+        "A": 2,
+        "B": 2
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 87,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 87,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 88,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 1,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 88,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 2
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 89,
+      "team": "A",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 2,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": "A",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 89,
+      "team": "B",
+      "outcome": "win",
+      "round": 200,
+      "scores": {
+        "A": 0,
+        "B": 1
+      },
+      "knockdowns": {
+        "A": 1,
+        "B": 1
+      },
+      "result": {
+        "winner": "B",
+        "reason": "higherScore"
+      }
+    },
+    {
+      "seed": 90,
+      "team": "A",
+      "outcome": "draw",
+      "round": 250,
+      "scores": {
+        "A": 0,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": null,
+        "reason": "draw"
+      }
+    },
+    {
+      "seed": 90,
+      "team": "B",
+      "outcome": "draw",
+      "round": 250,
+      "scores": {
+        "A": 0,
+        "B": 0
+      },
+      "knockdowns": {
+        "A": 0,
+        "B": 0
+      },
+      "result": {
+        "winner": null,
+        "reason": "draw"
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+批次對打：AI 一 = survival（survival），AI 二 = baseline（baseline）
+種子 91 到 120（共 30 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：60
+AI 一：勝 20、負 31、平手 9（60 場），勝率 33.3%（平手不算贏）
+  AI 一在 A 隊時：勝 11、負 16、平手 3（30 場）
+  AI 一在 B 隊時：勝 9、負 15、平手 6（30 場）
+平均回合數：189.03
+平均分數：AI 一 1.28、AI 二 1.62
+平均擊倒數：AI 一 1.80、AI 二 1.82
+打到第 200 回合（含）以後才結束：38 場
+每一步花的時間：AI 一 平均 3.854 毫秒、最久 13.018 毫秒；AI 二 平均 1.095 毫秒、最久 4.419 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 91，AI 一在 A 隊 → npm run ctf:match -- survival baseline 91
+  種子 91，AI 一在 B 隊 → npm run ctf:match -- baseline survival 91
+  種子 93，AI 一在 A 隊 → npm run ctf:match -- survival baseline 93
+  種子 93，AI 一在 B 隊 → npm run ctf:match -- baseline survival 93
+  種子 94，AI 一在 A 隊 → npm run ctf:match -- survival baseline 94
+  種子 95，AI 一在 A 隊 → npm run ctf:match -- survival baseline 95
+  種子 95，AI 一在 B 隊 → npm run ctf:match -- baseline survival 95
+  種子 97，AI 一在 A 隊 → npm run ctf:match -- survival baseline 97
+  種子 97，AI 一在 B 隊 → npm run ctf:match -- baseline survival 97
+  種子 99，AI 一在 A 隊 → npm run ctf:match -- survival baseline 99
+結果 SHA256: a2196697c431e21f88df00f619dd22195f8cd2ee42201cbc013d45e8a9bfe2a1

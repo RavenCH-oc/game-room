@@ -1,0 +1,25 @@
+批次對打：AI 一 = route（route），AI 二 = depth2（depth2）
+種子 91 到 110（共 20 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：40
+AI 一：勝 3、負 25、平手 12（40 場），勝率 7.5%（平手不算贏）
+  AI 一在 A 隊時：勝 1、負 13、平手 6（20 場）
+  AI 一在 B 隊時：勝 2、負 12、平手 6（20 場）
+平均回合數：212.82
+平均分數：AI 一 0.68、AI 二 1.43
+平均擊倒數：AI 一 3.45、AI 二 3.55
+打到第 200 回合（含）以後才結束：32 場
+每一步花的時間：AI 一 平均 2.592 毫秒、最久 8.410 毫秒；AI 二 平均 5.132 毫秒、最久 23.486 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 91，AI 一在 A 隊 → npm run ctf:match -- route depth2 91
+  種子 91，AI 一在 B 隊 → npm run ctf:match -- depth2 route 91
+  種子 93，AI 一在 A 隊 → npm run ctf:match -- route depth2 93
+  種子 93，AI 一在 B 隊 → npm run ctf:match -- depth2 route 93
+  種子 94，AI 一在 A 隊 → npm run ctf:match -- route depth2 94
+  種子 94，AI 一在 B 隊 → npm run ctf:match -- depth2 route 94
+  種子 95，AI 一在 A 隊 → npm run ctf:match -- route depth2 95
+  種子 95，AI 一在 B 隊 → npm run ctf:match -- depth2 route 95
+  種子 96，AI 一在 B 隊 → npm run ctf:match -- depth2 route 96
+  種子 98，AI 一在 A 隊 → npm run ctf:match -- route depth2 98
+結果 SHA256: bd572c4fc20276b4558fef954156660a9bfc2d65a42c7500ae061bd9daa45e8b

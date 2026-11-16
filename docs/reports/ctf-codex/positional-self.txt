@@ -1,0 +1,24 @@
+批次對打：AI 一 = positional（positional），AI 二 = positional（positional）
+種子 61 到 80（共 20 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：40
+AI 一：勝 9、負 9、平手 22（40 場），勝率 22.5%（平手不算贏）
+  AI 一在 A 隊時：勝 6、負 3、平手 11（20 場）
+  AI 一在 B 隊時：勝 3、負 6、平手 11（20 場）
+平均回合數：224.15
+平均分數：AI 一 1.00、AI 二 1.00
+平均擊倒數：AI 一 2.98、AI 二 2.98
+打到第 200 回合（含）以後才結束：32 場
+每一步花的時間：AI 一 平均 4.760 毫秒、最久 13.719 毫秒；AI 二 平均 4.755 毫秒、最久 12.982 毫秒
+
+AI 一輸掉的前 9 場（可以用後面的指令重看）：
+  種子 64，AI 一在 B 隊 → npm run ctf:match -- positional positional 64
+  種子 65，AI 一在 B 隊 → npm run ctf:match -- positional positional 65
+  種子 67，AI 一在 B 隊 → npm run ctf:match -- positional positional 67
+  種子 68，AI 一在 B 隊 → npm run ctf:match -- positional positional 68
+  種子 70，AI 一在 A 隊 → npm run ctf:match -- positional positional 70
+  種子 73，AI 一在 A 隊 → npm run ctf:match -- positional positional 73
+  種子 76，AI 一在 B 隊 → npm run ctf:match -- positional positional 76
+  種子 77，AI 一在 B 隊 → npm run ctf:match -- positional positional 77
+  種子 79，AI 一在 A 隊 → npm run ctf:match -- positional positional 79
+結果 SHA256: a8d5cf892bdaa4873eaf7a90142bd295f983284db119a460541b0df1c27b868c
