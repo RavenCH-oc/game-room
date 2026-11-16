@@ -2,36 +2,11 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { cpus, release } from 'node:os';
-import { createCodex } from '../../bots/codex/index.ts';
-import { createCodex as createBaseline } from './baseline.ts';
-import { createCodex as createDepth2 } from './depth2.ts';
-import { createCodex as createMixed } from './mixed.ts';
-import { createCodex as createAdaptive } from './adaptive.ts';
-import { createCodex as createSurvival } from './survival.ts';
-import { createCodex as createPositional } from './positional.ts';
-import { createCodex as createSentinel } from './sentinel.ts';
-import { createCodex as createRoute } from './route.ts';
 import { createSparring } from './sparring.ts';
 import { registerBot } from '../../bots/index.ts';
 import { CTF_CONFIG } from '../../core/index.ts';
 import { formatTournament, runTournament } from '../../scripts/tournamentRunner.ts';
 
-const variants = {
-  greedy: { safety: 0, future: 0, learning: false },
-  cautious: { safety: 0.4, future: 0, learning: false },
-  tactical: { safety: 0.15, future: 1, learning: true },
-};
-for (const [id, options] of Object.entries(variants)) {
-  registerBot({ id, name: id, create: ({ aiSeed, config }) => createBaseline(aiSeed, config, options) });
-}
-registerBot({ id: 'baseline', name: 'baseline', create: ({ aiSeed, config }) => createBaseline(aiSeed, config) });
-registerBot({ id: 'depth2', name: 'depth2', create: ({ aiSeed, config }) => createDepth2(aiSeed, config) });
-registerBot({ id: 'mixed', name: 'mixed', create: ({ aiSeed, config }) => createMixed(aiSeed, config) });
-registerBot({ id: 'adaptive', name: 'adaptive', create: ({ aiSeed, config }) => createAdaptive(aiSeed, config) });
-registerBot({ id: 'survival', name: 'survival', create: ({ aiSeed, config }) => createSurvival(aiSeed, config) });
-registerBot({ id: 'positional', name: 'positional', create: ({ aiSeed, config }) => createPositional(aiSeed, config) });
-registerBot({ id: 'sentinel', name: 'sentinel', create: ({ aiSeed, config }) => createSentinel(aiSeed, config) });
-registerBot({ id: 'route', name: 'route', create: ({ aiSeed, config }) => createRoute(aiSeed, config) });
 for (const style of ['defender', 'interceptor', 'evasive'] as const) {
   registerBot({ id: style, name: style, create: ({ aiSeed, config }) => createSparring(style, aiSeed, config) });
 }

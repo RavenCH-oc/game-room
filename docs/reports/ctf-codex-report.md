@@ -28,11 +28,11 @@ Bot 只收公開場面，AI 種子只用於確定性抽樣。地圖快取、學�
 - 最終保留：100001–100500，事先指定，策略凍結後才執行，不用來調整。
 - 每個種子兩場、交換隊伍；勝率分母包含平手。自我對戰交換標籤是同一對局的重播，不當作額外獨立樣本。
 - `experiment.ts` 呼叫未修改的正式 `runTournament`，保留每場種子、隊伍、結果、分數、擊倒數、回合數及總計時。`*.txt` 是原始格式輸出，`*.json` 是逐場紀錄，`*.jsonl` 是重要對局逐回合紀錄。
-- 舊版固定保存在 `games/ctf/tests/codex-research/`。研究用 AI 不加入正式選單。
+- 舊版 AI 已從目前分支移除；三種陪練仍保留在 `games/ctf/tests/codex-research/sparring.ts`，不加入正式選單。完整原始紀錄在這個分支的 commit [ab86bea](https://github.com/RavenCH-oc/game-room/tree/ab86bea741c99403973206c448a61707c7f76917)。
 
 ## 已比較方案
 
-下表為開發結果，不能代替最終保留測試。完整輸出在 [原始紀錄資料夾](ctf-codex/)。
+下表為開發結果，不能代替最終保留測試。完整原始紀錄在這個分支的 commit ab86bea。
 
 | 方案 | attacker 勝／總場 | runner 勝／總場 | 觀察 |
 | --- | ---: | ---: | --- |
@@ -102,16 +102,18 @@ runner：AI 一：勝 1000、負 0、平手 0（1000 場），勝率 100.0%（�
 
 ## 已發現的失敗與平衡問題
 
-- 早期版本種子 7、A 隊對 attacker：連續搶旗中彈，低血量又交換傷害而倒地。見 `baseline-loss-7.txt`。
-- mixed 版種子 66、B 隊對 defender：兩人斜對角各剩 1 HP，連續預判射擊落空，最後 0:0 平手。見 `mixed-draw-66.jsonl`。
+- 早期版本種子 7、A 隊對 attacker：連續搶旗中彈，低血量又交換傷害而倒地。
+- mixed 版種子 66、B 隊對 defender：兩人斜對角各剩 1 HP，連續預判射擊落空，最後 0:0 平手。
 - adaptive 版同一對局仍會轉移到另一個僵局位置。這說明只記「對手不動」不足以完整學會對手的射擊策略。
-- survival 對 baseline 的 91–120，20 勝 31 負 9 平。種子 91 的詳細紀錄 `survival-loss-91.jsonl` 顯示，打破僵局時走入守方射線會先付出血量，舊版本可以利用這點。這是不利證據，沒有隱藏。
-- 最終版對 attacker：種子 **100026、Codex 在 A 隊**，第 81 回合 2:3 落敗，擊倒數卻是 2:0。第 69 回合追成 2:2 時只剩 1 HP；之後對手先取得有利布防位置，Codex 在第 74–75 回合等待，讓對手撿旗；後續預判射擊落空、追不上回家。這是「不重置位置＋低血量保守＋短視攔截」的組合弱點。[逐回合紀錄](ctf-codex/final-loss-attacker-100026.jsonl)。
-- 最終版對 interceptor：種子 **100001、Codex 在 B 隊**，第 157 回合 1:3 落敗，雙方都沒有擊倒。對手分別在第 64、113、149 回合拿旗並成功回家，Codex 只在第 79 回合取得一次旗子；說明即使沒有被擊倒，位置爭奪與攔截仍會輸。[逐回合紀錄](ctf-codex/final-loss-interceptor-100001.jsonl)。
-- 最終自我對戰種子 **100002**：第 250 回合 0:0，雙方都滿血、沒有擊倒，B 仍持旗；開局封線後反覆移位，始終沒有成功回家。混合策略與重複局面處理仍不能保證打破循環。[逐回合紀錄](ctf-codex/final-self-draw.jsonl)。
+- survival 對 baseline 的 91–120，20 勝 31 負 9 平。種子 91 的詳細紀錄顯示，打破僵局時走入守方射線會先付出血量，舊版本可以利用這點。這是不利證據，沒有隱藏。
+- 最終版對 attacker：種子 **100026、Codex 在 A 隊**，第 81 回合 2:3 落敗，擊倒數卻是 2:0。第 69 回合追成 2:2 時只剩 1 HP；之後對手先取得有利布防位置，Codex 在第 74–75 回合等待，讓對手撿旗；後續預判射擊落空、追不上回家。這是「不重置位置＋低血量保守＋短視攔截」的組合弱點。
+- 最終版對 interceptor：種子 **100001、Codex 在 B 隊**，第 157 回合 1:3 落敗，雙方都沒有擊倒。對手分別在第 64、113、149 回合拿旗並成功回家，Codex 只在第 79 回合取得一次旗子；說明即使沒有被擊倒，位置爭奪與攔截仍會輸。
+- 最終自我對戰種子 **100002**：第 250 回合 0:0，雙方都滿血、沒有擊倒，B 仍持旗；開局封線後反覆移位，始終沒有成功回家。混合策略與重複局面處理仍不能保證打破循環。
 - 射擊沒有彈藥或冷卻成本，守住入口並反覆預射合法；先走入交叉火線的一方常吃虧。持旗不能射擊且中彈即掉旗，使保守防守很有利。
 - 得分後不重置位置，追擊者可能貼近得分者家門；得分者也可能保有血量或位置優勢。不能僅憑規則推論一定偏向哪方，需看對照實驗。
 - 領先後拖到第 200 回合是規則允許的勝法；這和耗費運算時間拖延不同。本 AI 的運算不使用等待、時鐘或外部資料。
+
+上述敗局的完整原始紀錄在這個分支的 commit ab86bea。
 
 ## 建議
 
@@ -141,9 +143,9 @@ runner：AI 一：勝 1000、負 0、平手 0（1000 場），勝率 100.0%（�
 重現整組：
 
 ```powershell
-node games/ctf/tests/codex-research/balance.ts sentinel sentinel 20 91 default rerun-balance-default
-node games/ctf/tests/codex-research/balance.ts sentinel sentinel 20 91 reset rerun-balance-reset
-node games/ctf/tests/codex-research/balance.ts sentinel sentinel 20 91 nodrop rerun-balance-nodrop
+node games/ctf/tests/codex-research/balance.ts codex codex 20 91 default rerun-balance-default
+node games/ctf/tests/codex-research/balance.ts codex codex 20 91 reset rerun-balance-reset
+node games/ctf/tests/codex-research/balance.ts codex codex 20 91 nodrop rerun-balance-nodrop
 ```
 
 ## 重現指令
@@ -157,11 +159,11 @@ npm run typecheck
 npm run ctf:match -- codex attacker 42
 npm run ctf:tournament -- codex attacker 500 100001
 npm run ctf:tournament -- codex runner 500 100001
-node games/ctf/tests/codex-research/experiment.ts survival baseline 30 91 rerun-survival-old
-node games/ctf/tests/codex-research/trace.ts survival baseline 91 rerun-loss-91
+node games/ctf/tests/codex-research/experiment.ts codex defender 50 100001 rerun-defender
+node games/ctf/tests/codex-research/trace.ts codex attacker 100026 rerun-loss-100026
 ```
 
-原始研究輸出沿用正式工具的重播提示；其中研究專用代號不在正式選單，應用上面的 `trace.ts` 重播，不能直接把研究代號交給 `ctf:match`。
+原始研究輸出沿用正式工具的重播提示；defender、interceptor、evasive 不在正式選單，應用上面的 `trace.ts` 重播。舊版代號已移除，完整原始紀錄在這個分支的 commit ab86bea。平衡實驗原名 sentinel 的版本與正式 codex 策略相同，目前使用 codex 重播。
 
 ## 合規與驗證
 
@@ -184,6 +186,8 @@ Test Files  12 passed (12)
 
 ## 最終達標情況與審查事項
 
+下表保留原自動測試階段的數字與結論；後續真人試玩另記於文末。
+
 | 項目 | 結論 |
 | --- | --- |
 | attacker 500 種子／1000 場 ≥90% | 達標：981 勝，98.1% |
@@ -199,4 +203,8 @@ Test Files  12 passed (12)
 
 建議審查優先查看：未知旗位遮蔽是否完整、對手機率模型與有限搜尋的盲點、重複局面減分如何被守方利用，以及是否接受目前自我僵局比例。若要再研發，應另設新的保留種子，不把這次的最終資料當作新的未見資料。
 
-交付範圍為 Codex 正式程式、登記、必要測試、研究工具與本報告及原始紀錄。只推送 `feat/ctf-codex-bot`，不建立 PR、不合併、不推 main，等待人工審查。
+整理後的交付範圍為 Codex 正式程式、登記、必要測試、研究工具與本報告及保留紀錄。只推送既有 PR #10 的 `feat/ctf-codex-bot` 分支，不合併、不推 main，等待檢查。
+
+## 真人試玩（2026-11-16）
+
+依屋主回報，AI 對屋主 **8 勝 2 負**，對另一位玩家 **5 勝 0 負**。人贏的兩局，一局是 **2:1** 領先後拖到 **200 回合**，另一局是 **3:1**，靠三格長、一格寬的直通道地形。屋主確認真人試玩達標，本次僅整理 PR，不再調整策略。

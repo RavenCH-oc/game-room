@@ -1,5 +1,16 @@
 # Codex 研發接續紀錄
 
+## PR #10 合併前整理（2026-11-16）
+
+AI 審核通過，屋主確認真人試玩達標；本次不再調整策略。正式 AI、登記、必要測試與三種陪練保持原樣，只移除舊版 AI 和非保留的原始紀錄，研究工具改用正式 codex 與陪練。報告原數字與結論保留，文末追加真人試玩結果。
+
+完整原始紀錄在這個分支的 commit [ab86bea](https://github.com/RavenCH-oc/game-room/tree/ab86bea741c99403973206c448a61707c7f76917)。以下是整理前的歷史研發紀錄，其中舊版檔案與已移除紀錄的引用均指該 commit。此次只推送 PR #10 的原分支，等待檢查，不合併。
+
+- 移除 9 個舊版 AI 檔案、119 個非保留原始紀錄；保留 10 個 final-*.txt、報告指定兩節連結的 3 個 JSON 和 1 個 JSONL、environment.json、progress.md。
+- experiment、trace、balance 已解除舊版依賴；三種陪練各實跑一個種子的雙邊對戰，trace 完整跑完一場。balance 以 codex 重播種子 91 的 default/reset/nodrop，逐場資料與保留的原始紀錄完全一致。
+- 報告表格逐列比對不變，文件連結均存在。正式 AI、登記、三個測試檔與 sparring.ts 另以 SHA256 確認未變。
+- 第一次 npm test 為 236 通過、1 失敗：既有 roomManager 測試「對 AI：AI 每回合由伺服器呼叫腳本出手」未固定種子，預期 runner 移動，但抽到不動。沒有修改測試或任何 AI；完整重跑為 12 檔、237 項通過，npm run typecheck 通過。
+
 ## 最新狀態
 
 研發、驗證與最終保留測試均完成；以下歷史項目的「進行中」是當時紀錄，已由本節覆蓋。正式程式凍結於 `2e3e489`，後續沒有修改策略。

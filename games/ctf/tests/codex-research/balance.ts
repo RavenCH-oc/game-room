@@ -4,9 +4,6 @@ import { CTF_CONFIG, type GameState } from '../../core/index.ts';
 import { registerBot } from '../../bots/index.ts';
 import { createMatchBots, playGame } from '../../scripts/matchRunner.ts';
 import { createSparring } from './sparring.ts';
-import { createCodex as createSentinel } from './sentinel.ts';
-
-registerBot({ id: 'sentinel', name: 'sentinel', create: ({ aiSeed, config }) => createSentinel(aiSeed, config) });
 
 for (const style of ['defender', 'interceptor', 'evasive'] as const) {
   registerBot({ id: style, name: style, create: ({ aiSeed, config }) => createSparring(style, aiSeed, config) });
