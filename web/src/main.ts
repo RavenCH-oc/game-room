@@ -1,7 +1,7 @@
 // 網頁的主程式：大廳、等待、比賽、結束畫面的切換與操作。
 
 import { CTF_CONFIG, type Action, type Direction, type GameEvent, type Position, type PublicGameState } from '../../games/ctf/core/index.ts';
-import type { OpponentKind, RoomView, ServerMessage } from '../../server/protocol.ts';
+import type { BotListItem, OpponentChoice, RoomView, ServerMessage } from '../../server/protocol.ts';
 import { createBoard, directionTowards } from './board.ts';
 import { connect } from './connection.ts';
 import { describeAction, describeEvent, describeResult } from './describe.ts';
@@ -62,6 +62,9 @@ const connection = connect({
 
 function handleServerMessage(message: ServerMessage): void {
   switch (message.type) {
+    case 'botList':
+      renderBotChoices(message.bots);
+      return;
     case 'joined':
       saveToken(message.token);
       lobbyError.hidden = true;
@@ -142,9 +145,34 @@ $('create-button').addEventListener('click', () => {
   if (!nickname) return;
   if (!connected) return showLobbyError('還沒連上伺服器，請稍等。');
   const selected = document.querySelector<HTMLInputElement>('input[name="opponent"]:checked');
-  const opponent = (selected?.value ?? 'friend') as OpponentKind;
+  const botId = selected?.dataset.botId;
+  const opponent: OpponentChoice = botId ? { kind: 'ai', botId } : { kind: 'friend' };
   connection.send({ type: 'createRoom', nickname, opponent });
 });
+
+/**
+ * 開房的對手選單：「等朋友」之後，照 AI 登記表的順序列出伺服器送來的 AI（docs/web-v1.md 第 3 節）。
+ * 網頁不另外寫死 AI 清單。重新連線時會再收到一次，保留原本選的那一個。
+ */
+function renderBotChoices(bots: BotListItem[]): void {
+  const group = $('opponent-choices');
+  const previous = document.querySelector<HTMLInputElement>('input[name="opponent"]:checked')?.dataset.botId;
+  group.querySelectorAll('label[data-bot-choice]').forEach((label) => label.remove());
+  for (const bot of bots) {
+    const label = document.createElement('label');
+    label.dataset.botChoice = 'true';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'opponent';
+    input.value = `ai:${bot.id}`;
+    input.dataset.botId = bot.id;
+    if (bot.id === previous) input.checked = true;
+    label.append(input, ` AI：${bot.name}`);
+    group.appendChild(label);
+  }
+  const friend = document.querySelector<HTMLInputElement>('input[name="opponent"][value="friend"]');
+  if (friend && !document.querySelector('input[name="opponent"]:checked')) friend.checked = true;
+}
 
 $('join-button').addEventListener('click', joinRoom);
 roomCodeInput.addEventListener('keydown', (event) => {

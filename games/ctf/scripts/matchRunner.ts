@@ -1,8 +1,10 @@
-// 讓兩個範例 AI 對打一整場，產生要印在終端機的每一行文字（規則第 8 節）。
-// 對打指令（match.ts）和測試共用：同樣的 AI 組合加同樣的種子，產生的文字完全一樣。
+// 讓兩個 AI 對打一整場，產生要印在終端機的每一行文字（規則第 8 節）。
+// 對打指令（match.ts）、批次對打（tournamentRunner.ts）和測試共用：
+// 同樣的 AI 組合加同樣的種子，結果完全一樣。
 // v0.5：種子就是這場比賽的種子，同時決定旗子位置和兩邊 AI 的隨機行為。
+// AI 用代號從 AI 登記表（games/ctf/bots/index.ts）建立。
 
-import { BOT_NAMES, createBot, type BotKind } from '../bots/index.ts';
+import { createBot, findBot } from '../bots/index.ts';
 import {
   CTF_CONFIG,
   createInitialState,
@@ -25,33 +27,25 @@ export interface MatchOutput {
   finalState: GameState;
 }
 
-/** 讓兩個 AI 打完一整場，回傳結束時的場面（測試用） */
-export function playMatch(kindA: BotKind, kindB: BotKind, seed: number, config: CtfConfig = CTF_CONFIG): GameState {
-  return runMatch(kindA, kindB, seed, config).finalState;
+/** 每一場都重新建立兩邊的 AI（每個角色建立一次）；AI 種子由比賽種子和角色 id 算出 */
+export function createMatchBots(botA: string, botB: string, seed: number, config: CtfConfig = CTF_CONFIG): Record<string, Bot> {
+  return {
+    A1: createBot(botA, seed, 'A1', config),
+    B1: createBot(botB, seed, 'B1', config),
+  };
 }
 
-export function runMatch(kindA: BotKind, kindB: BotKind, seed: number, config: CtfConfig = CTF_CONFIG): MatchOutput {
-  const lines: string[] = [];
-  const print = (text: string): void => {
-    lines.push(...text.split('\n'));
-  };
-
-  // 每一場都重新建立 AI；AI 種子由比賽種子和角色 id 算出
-  const bots: Record<string, Bot> = {
-    A1: createBot(kindA, seed, 'A1', config),
-    B1: createBot(kindB, seed, 'B1', config),
-  };
-
+/**
+ * 用已經建立好的 AI 打完一整場，回傳結束時的場面。
+ * onRound 會在每回合結算完呼叫一次（給要印過程的指令用）。
+ */
+export function playGame(
+  bots: Record<string, Bot>,
+  seed: number,
+  config: CtfConfig = CTF_CONFIG,
+  onRound?: (state: GameState, events: GameEvent[], wasOvertime: boolean) => void,
+): GameState {
   let state: GameState = createInitialState(config, seed);
-
-  print(`種子：${seed}`);
-  print(`A 隊：${BOT_NAMES[kindA]}  vs  B 隊：${BOT_NAMES[kindB]}`);
-  print('符號：A/B 重生點  F 旗子  # 牆壁  a/b 角色  @ 拿著旗子的角色');
-  print('');
-  print('開場');
-  print(renderBoard(state));
-  print(describeStatus(state));
-
   while (!state.result) {
     const wasOvertime = state.phase === 'overtime';
     const actions: ActionMap = {};
@@ -61,19 +55,45 @@ export function runMatch(kindA: BotKind, kindB: BotKind, seed: number, config: C
       // AI 看到的場面不含種子和亂數狀態
       if (bot) actions[character.id] = bot(getCharacterView(state, character.id));
     }
-
     const output = resolveRound(state, actions, config);
     state = output.state;
+    onRound?.(state, output.events, wasOvertime);
+  }
+  return state;
+}
 
+/** 讓兩個 AI 打完一整場，回傳結束時的場面（測試用） */
+export function playMatch(botA: string, botB: string, seed: number, config: CtfConfig = CTF_CONFIG): GameState {
+  return playGame(createMatchBots(botA, botB, seed, config), seed, config);
+}
+
+export function runMatch(botA: string, botB: string, seed: number, config: CtfConfig = CTF_CONFIG): MatchOutput {
+  const lines: string[] = [];
+  const print = (text: string): void => {
+    lines.push(...text.split('\n'));
+  };
+
+  const bots = createMatchBots(botA, botB, seed, config);
+  const opening = createInitialState(config, seed);
+
+  print(`種子：${seed}`);
+  print(`A 隊：${botLabel(botA)}  vs  B 隊：${botLabel(botB)}`);
+  print('符號：A/B 重生點  F 旗子  # 牆壁  a/b 角色  @ 拿著旗子的角色');
+  print('');
+  print('開場');
+  print(renderBoard(opening));
+  print(describeStatus(opening));
+
+  const state = playGame(bots, seed, config, (current, events, wasOvertime) => {
     print('');
-    print(`── 第 ${state.round} 回合${wasOvertime ? '（延長賽）' : ''} ──`);
-    print(renderBoard(state));
-    print(describeStatus(state));
-    for (const event of output.events) {
+    print(`── 第 ${current.round} 回合${wasOvertime ? '（延長賽）' : ''} ──`);
+    print(renderBoard(current));
+    print(describeStatus(current));
+    for (const event of events) {
       const text = describeEvent(event);
       if (text) print(`  · ${text}`);
     }
-  }
+  });
 
   print('');
   print('════ 比賽結束 ════');
@@ -81,9 +101,15 @@ export function runMatch(kindA: BotKind, kindB: BotKind, seed: number, config: C
     `最終分數 A ${state.scores.A} : ${state.scores.B} B，` +
       `擊倒數 A ${state.knockdowns.A} : ${state.knockdowns.B} B，共 ${state.round} 回合`,
   );
-  print(describeResult(state.result));
+  print(describeResult(state.result!));
   print(`種子：${seed}`);
   return { lines, finalState: state };
+}
+
+/** AI 的名稱：「攻擊（attacker）」 */
+export function botLabel(id: string): string {
+  const entry = findBot(id);
+  return entry ? `${entry.name}（${entry.id}）` : id;
 }
 
 /** 場地下方的狀態列：分數、擊倒數、每個角色的生命值、旗子的階段 */

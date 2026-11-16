@@ -2,12 +2,23 @@
 
 import type { Action, GameEvent, GameResult, PublicGameState, Team } from '../games/ctf/core/index.ts';
 
-/** 開房時選的對手 */
-export type OpponentKind = 'friend' | 'aiAttacker' | 'aiFlagRunner' | 'aiRandomWalker';
+/**
+ * 開房時選的對手：等朋友，或 AI 登記表（games/ctf/bots/index.ts）裡的某個 AI（用代號指定）。
+ * 伺服器和網頁都不另外寫死 AI 清單（docs/web-v1.md 第 3 節）。
+ */
+export type OpponentChoice = { kind: 'friend' } | { kind: 'ai'; botId: string };
+
+/** 網頁開房選單用的 AI 清單（照登記表的順序） */
+export interface BotListItem {
+  /** 代號，開房時送回伺服器 */
+  id: string;
+  /** 顯示名稱；選單顯示「AI：」加上這個名稱 */
+  name: string;
+}
 
 /** 瀏覽器 → 伺服器 */
 export type ClientMessage =
-  | { type: 'createRoom'; nickname: string; opponent: OpponentKind }
+  | { type: 'createRoom'; nickname: string; opponent: OpponentChoice }
   | { type: 'joinRoom'; nickname: string; roomCode: string }
   /**
    * 重新整理後，用之前拿到的通行碼回到原本的房間。
@@ -43,7 +54,7 @@ export interface SeatView {
 export interface RoomView {
   roomCode: string;
   phase: RoomPhase;
-  opponentKind: OpponentKind;
+  opponent: OpponentChoice;
   yourTeam: Team;
   yourCharacterId: string;
   seats: Record<Team, SeatView | null>;
@@ -67,6 +78,8 @@ export interface RoomView {
 /** 伺服器 → 瀏覽器 */
 export type ServerMessage =
   | { type: 'error'; message: string }
+  /** 連線一建立就送一次：開房選單用的 AI 清單（來自 AI 登記表） */
+  | { type: 'botList'; bots: BotListItem[] }
   /** 進入房間（開房、加入、重連成功）時送一次，裡面的通行碼請存起來 */
   | { type: 'joined'; token: string; roomCode: string; team: Team }
   /** 重連失敗：gone = 房間不在了或通行碼不對；inUse = 那個位子正在被另一個分頁使用 */

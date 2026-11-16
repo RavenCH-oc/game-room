@@ -1,0 +1,20 @@
+# 統一換行符號：文字檔在 repo 裡一律存成 LF（Windows 和 Mac/Linux 一樣）。
+# eol=lf 也讓 Windows 上取出來的檔案是 LF，和 GitHub Actions（Linux）上看到的一致。
+* text=auto eol=lf
+
+# Windows 專用的批次檔維持 CRLF（目前沒有，先寫好）
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二進位檔不要動
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.mp3 binary
+*.ogg binary
+*.wav binary
