@@ -1,0 +1,25 @@
+批次對打：AI 一 = Codex（codex），AI 二 = baseline（baseline）
+種子 100001 到 100050（共 50 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：100
+AI 一：勝 45、負 46、平手 9（100 場），勝率 45.0%（平手不算贏）
+  AI 一在 A 隊時：勝 20、負 26、平手 4（50 場）
+  AI 一在 B 隊時：勝 25、負 20、平手 5（50 場）
+平均回合數：181.85
+平均分數：AI 一 1.42、AI 二 1.60
+平均擊倒數：AI 一 1.03、AI 二 1.05
+打到第 200 回合（含）以後才結束：59 場
+每一步花的時間：AI 一 平均 2.535 毫秒、最久 9.063 毫秒；AI 二 平均 0.773 毫秒、最久 3.728 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 100001，AI 一在 A 隊 → npm run ctf:match -- codex baseline 100001
+  種子 100001，AI 一在 B 隊 → npm run ctf:match -- baseline codex 100001
+  種子 100002，AI 一在 A 隊 → npm run ctf:match -- codex baseline 100002
+  種子 100002，AI 一在 B 隊 → npm run ctf:match -- baseline codex 100002
+  種子 100003，AI 一在 A 隊 → npm run ctf:match -- codex baseline 100003
+  種子 100003，AI 一在 B 隊 → npm run ctf:match -- baseline codex 100003
+  種子 100005，AI 一在 A 隊 → npm run ctf:match -- codex baseline 100005
+  種子 100005，AI 一在 B 隊 → npm run ctf:match -- baseline codex 100005
+  種子 100008，AI 一在 B 隊 → npm run ctf:match -- baseline codex 100008
+  種子 100011，AI 一在 A 隊 → npm run ctf:match -- codex baseline 100011
+結果 SHA256: 843e2cbfa960e26a2ed8b47f4b845ab2a17e24f9784d0ebd9831ef8a3c431fc7

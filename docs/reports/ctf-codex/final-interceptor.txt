@@ -1,0 +1,25 @@
+批次對打：AI 一 = Codex（codex），AI 二 = interceptor（interceptor）
+種子 100001 到 100050（共 50 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：100
+AI 一：勝 58、負 30、平手 12（100 場），勝率 58.0%（平手不算贏）
+  AI 一在 A 隊時：勝 28、負 14、平手 8（50 場）
+  AI 一在 B 隊時：勝 30、負 16、平手 4（50 場）
+平均回合數：204.42
+平均分數：AI 一 1.05、AI 二 0.81
+平均擊倒數：AI 一 0.46、AI 二 0.56
+打到第 200 回合（含）以後才結束：91 場
+每一步花的時間：AI 一 平均 2.858 毫秒、最久 9.703 毫秒；AI 二 平均 0.007 毫秒、最久 2.004 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 100001，AI 一在 B 隊 → npm run ctf:match -- interceptor codex 100001
+  種子 100003，AI 一在 A 隊 → npm run ctf:match -- codex interceptor 100003
+  種子 100003，AI 一在 B 隊 → npm run ctf:match -- interceptor codex 100003
+  種子 100005，AI 一在 A 隊 → npm run ctf:match -- codex interceptor 100005
+  種子 100005，AI 一在 B 隊 → npm run ctf:match -- interceptor codex 100005
+  種子 100007，AI 一在 A 隊 → npm run ctf:match -- codex interceptor 100007
+  種子 100008，AI 一在 A 隊 → npm run ctf:match -- codex interceptor 100008
+  種子 100010，AI 一在 A 隊 → npm run ctf:match -- codex interceptor 100010
+  種子 100011，AI 一在 B 隊 → npm run ctf:match -- interceptor codex 100011
+  種子 100014，AI 一在 B 隊 → npm run ctf:match -- interceptor codex 100014
+結果 SHA256: 9a8b5477482d84dfc332b8818b4205b66d41194020d2b812abfb03eb98c82824

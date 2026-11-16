@@ -1,0 +1,28 @@
+
+> game-room@0.1.0 ctf:tournament
+> node games/ctf/scripts/tournament.ts codex attacker 500 100001
+
+批次對打：AI 一 = Codex（codex），AI 二 = 攻擊（attacker）
+種子 100001 到 100500（共 500 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：1000
+AI 一：勝 981、負 19、平手 0（1000 場），勝率 98.1%（平手不算贏）
+  AI 一在 A 隊時：勝 491、負 9、平手 0（500 場）
+  AI 一在 B 隊時：勝 490、負 10、平手 0（500 場）
+平均回合數：88.62
+平均分數：AI 一 2.98、AI 二 0.91
+平均擊倒數：AI 一 3.20、AI 二 0.85
+打到第 200 回合（含）以後才結束：2 場
+每一步花的時間：AI 一 平均 2.154 毫秒、最久 9.344 毫秒；AI 二 平均 0.042 毫秒、最久 0.936 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 100026，AI 一在 A 隊 → npm run ctf:match -- codex attacker 100026
+  種子 100042，AI 一在 B 隊 → npm run ctf:match -- attacker codex 100042
+  種子 100058，AI 一在 B 隊 → npm run ctf:match -- attacker codex 100058
+  種子 100064，AI 一在 B 隊 → npm run ctf:match -- attacker codex 100064
+  種子 100162，AI 一在 A 隊 → npm run ctf:match -- codex attacker 100162
+  種子 100169，AI 一在 B 隊 → npm run ctf:match -- attacker codex 100169
+  種子 100180，AI 一在 B 隊 → npm run ctf:match -- attacker codex 100180
+  種子 100189，AI 一在 B 隊 → npm run ctf:match -- attacker codex 100189
+  種子 100203，AI 一在 A 隊 → npm run ctf:match -- codex attacker 100203
+  種子 100258，AI 一在 B 隊 → npm run ctf:match -- attacker codex 100258
