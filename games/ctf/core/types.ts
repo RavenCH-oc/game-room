@@ -59,9 +59,24 @@ export type GameResult =
   | { winner: null; reason: 'draw' };
 
 /**
- * 公開的場面：給 AI 腳本看、送給瀏覽器的都是這個（v0.5：不含種子和亂數狀態）。
+ * 一場比賽的地圖（v0.6，規則第 2 節「地圖放在場面資料裡」）。
+ * 建立開場場面時決定，整場比賽不變；是公開資訊。
+ */
+export interface GameMap {
+  width: number;
+  height: number;
+  /** 兩隊的重生點 */
+  spawnPoints: Record<Team, Position>;
+  /** 牆壁清單，照「y 由小到大，y 相同時 x 由小到大」排列 */
+  walls: Position[];
+}
+
+/**
+ * 公開的場面：給 AI 腳本看、送給瀏覽器的都是這個（v0.5：不含種子和亂數狀態；v0.6：包含地圖）。
  */
 export interface PublicGameState {
+  /** 這一場的地圖（v0.6） */
+  map: GameMap;
   /** 已經結算完的回合數（開場是 0；延長賽接著往上數，例如第 201 回合） */
   round: number;
   phase: Phase;

@@ -52,7 +52,8 @@ game-room/
 - `npm start`：用打包好的網頁啟動伺服器（要先 `npm run build`）
 - `npm test`：跑全部測試
 - `npm run typecheck`：型別檢查
-- `npm run ctf:match`：讓兩個範例 AI 對打一場奪旗，在終端機印出每回合場地。可指定兩邊的 AI 和種子：`npm run ctf:match -- attacker runner 42`（AI 名稱：random 亂走、runner 搶旗、attacker 攻擊型）。種子同時決定旗子位置和 AI 的隨機行為，同樣的種子會重播出同一場
+- `npm run ctf:match`：讓兩個範例 AI 對打一場奪旗，在終端機印出每回合場地。可指定兩邊的 AI 和種子：`npm run ctf:match -- attacker runner 42`（AI 名稱：random 亂走、runner 搶旗、attacker 攻擊型）。種子同時決定地圖、旗子位置和 AI 的隨機行為，同樣的種子會重播出同一場
+- `npm run ctf:map`：印出某個種子的 11×11 隨機地圖、牆壁格數、旗子候選格數。可指定種子：`npm run ctf:map -- 42`（沒給種子用 1）
 
 （新增指令時請更新這一段。）
 

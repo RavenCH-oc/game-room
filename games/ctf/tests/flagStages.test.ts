@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { createBot } from '../bots/index.ts';
 import {
+  CLASSIC_MAP_9X9,
   CTF_CONFIG,
   createInitialState,
   flagCandidateCells,
@@ -12,6 +13,7 @@ import {
   type ActionMap,
   type CtfConfig,
   type GameEvent,
+  type GameMap,
   type GameState,
   type Position,
 } from '../core/index.ts';
@@ -19,10 +21,11 @@ import { characterOf, hpOf, makeState, move, positionOf, shoot, stay } from './h
 
 const at = (position: Position): string => `(${position.x}, ${position.y})`;
 
-/** A1 站在 (1, 4) 拿著旗，往左走一步就得分（N = 這一回合） */
+/** A1 站在自己家右邊一格拿著旗，往左走一步就得分（N = 這一回合）。9×9 固定地圖是 (1, 4) */
 function aboutToScore(base: GameState): GameState {
   const state = structuredClone(base);
-  characterOf(state, 'A1').position = { x: 1, y: 4 };
+  const home = state.map.spawnPoints.A;
+  characterOf(state, 'A1').position = { x: home.x + 1, y: home.y };
   state.flag = { status: 'carried', carrierId: 'A1' };
   return state;
 }
@@ -30,9 +33,15 @@ function aboutToScore(base: GameState): GameState {
 /**
  * 從開局開始，一直讓 A1 得分，記下每一面旗子「出現」的位置。
  * 每次得分後把分數歸零，避免比賽結束（只看旗子位置，和分數無關）。
+ * map 預設是 9×9 固定地圖（v0.5 的測試）；傳 null 表示用種子生成的隨機地圖（v0.6）。
  */
-function flagSequence(seed: number, count: number, config: CtfConfig = CTF_CONFIG): Position[] {
-  let state = createInitialState(config, seed);
+function flagSequence(
+  seed: number,
+  count: number,
+  config: CtfConfig = CTF_CONFIG,
+  map: GameMap | null = CLASSIC_MAP_9X9,
+): Position[] {
+  let state = createInitialState(config, seed, map ?? undefined);
   const positions: Position[] = [];
   while (positions.length < count) {
     if (state.flag.status === 'onGround') {
@@ -146,18 +155,22 @@ describe('第 5 節：旗子的三個階段（v0.5）', () => {
     expect(events.filter((event) => event.type.startsWith('flag'))).toEqual([]);
   });
 
-  it('候選格：中線 x = 4 上不是牆的 7 格，照 y 由小到大', () => {
-    expect(flagCandidateCells(CTF_CONFIG)).toEqual([0, 2, 3, 4, 5, 6, 8].map((y) => ({ x: 4, y })));
+  it('候選格：9×9 固定地圖是中線 x = 4 上不是牆的 7 格，照 y 由小到大', () => {
+    expect(flagCandidateCells(CLASSIC_MAP_9X9)).toEqual([0, 2, 3, 4, 5, 6, 8].map((y) => ({ x: 4, y })));
   });
 
-  it('位置一定在中線上、不是牆；同一場裡連續兩面旗子不會出現在同一格（多個種子、多次得分）', () => {
+  it('位置一定在中線上、不是牆（v0.6：照那一場的地圖）；同一場裡連續兩面旗子不會出現在同一格（多個種子、多次得分）', () => {
     for (let seed = 1; seed <= 25; seed++) {
-      const positions = flagSequence(seed, 15);
-      positions.forEach((position, index) => {
-        expect(position.x, `種子 ${seed} 第 ${index + 1} 面`).toBe(4);
-        expect(isWall(position, CTF_CONFIG), `種子 ${seed} 第 ${index + 1} 面`).toBe(false);
-        if (index > 0) expect(position, `種子 ${seed} 第 ${index + 1} 面`).not.toEqual(positions[index - 1]);
-      });
+      // 9×9 固定地圖，以及這個種子生成的 11×11 隨機地圖都檢查
+      for (const map of [CLASSIC_MAP_9X9, createInitialState(CTF_CONFIG, seed).map]) {
+        const positions = flagSequence(seed, 15, CTF_CONFIG, map);
+        positions.forEach((position, index) => {
+          const label = `種子 ${seed}（${map.width}×${map.height}）第 ${index + 1} 面`;
+          expect(position.x, label).toBe(Math.floor(map.width / 2));
+          expect(isWall(position, map), label).toBe(false);
+          if (index > 0) expect(position, label).not.toEqual(positions[index - 1]);
+        });
+      }
     }
   });
 
@@ -173,7 +186,7 @@ describe('第 5 節：旗子的三個階段（v0.5）', () => {
     expect(state.lastFlagSpawn).toEqual({ x: 4, y: 5 });
   });
 
-  it('指定種子時，抽到的位置和照第 5 節算法手算的結果一致（種子 1 的前三面旗子）', () => {
+  it('指定種子時，抽到的位置和照第 5 節算法手算的結果一致（種子 1、9×9 固定地圖的前三面旗子）', () => {
     // 手算（另外用 Python 照 mulberry32 算過）：
     // 第 1 面：亂數狀態 1 + 0x6D2B79F5 = 0x6D2B79F6，r ≈ 0.627074；候選 7 格，0.627074 × 7 = 4.39 → 第 4 個 = (4, 5)
     // 第 2 面：亂數狀態 0xDA56F3EB，r ≈ 0.002736；去掉 (4, 5) 剩 6 格，× 6 = 0.016 → 第 0 個 = (4, 0)
@@ -187,7 +200,7 @@ describe('第 5 節：旗子的三個階段（v0.5）', () => {
 
   it('隱藏回合數設成 0：開局和得分時直接抽位置，進入預告', () => {
     const config: CtfConfig = { ...CTF_CONFIG, flagHiddenRounds: 0 };
-    const start = createInitialState(config);
+    const start = createInitialState(config, 1, CLASSIC_MAP_9X9);
     expect(start.flag).toEqual({ status: 'announced', roundsLeft: 2, nextPosition: { x: 4, y: 5 } });
 
     let state = makeState({ round: 20 });
@@ -203,7 +216,7 @@ describe('第 5 節：旗子的三個階段（v0.5）', () => {
 
   it('預告回合數設成 0：隱藏結束時直接出現', () => {
     const config: CtfConfig = { ...CTF_CONFIG, flagAnnounceRounds: 0 };
-    let state = createInitialState(config);
+    let state = createInitialState(config, 1, CLASSIC_MAP_9X9);
     expect(state.flag).toEqual({ status: 'hidden', roundsLeft: 2 });
     state = resolveRound(state, {}, config).state;
     expect(state.flag).toEqual({ status: 'hidden', roundsLeft: 1 });
@@ -215,7 +228,7 @@ describe('第 5 節：旗子的三個階段（v0.5）', () => {
 
   it('兩個都設成 0：開局和得分時直接抽位置，旗子立刻在場上（得分後的下一回合就能撿）', () => {
     const config: CtfConfig = { ...CTF_CONFIG, flagHiddenRounds: 0, flagAnnounceRounds: 0 };
-    const start = createInitialState(config);
+    const start = createInitialState(config, 1, CLASSIC_MAP_9X9);
     expect(start.flag).toEqual({ status: 'onGround', position: { x: 4, y: 5 } });
 
     // B1 站在旗子會出現的格子旁邊。A1 得分的那一回合旗子就出現；下一回合 B1 走進去就撿到

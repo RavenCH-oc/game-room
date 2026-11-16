@@ -1,18 +1,21 @@
 // 旗子的三個階段：隱藏 → 預告 → 出現（規則第 5 節，v0.5）。
 // 這裡的函式都只改「傳進來的那份新場面」（結算時已經是複本），不碰原本的場面。
 
-import { isWall, samePosition } from './board.ts';
+import { isWall, midlineX, samePosition } from './board.ts';
 import type { CtfConfig } from './config.ts';
 import { nextRandom, pickIndex } from './random.ts';
-import type { GameEvent, GameState, Position } from './types.ts';
+import type { GameEvent, GameMap, GameState, Position } from './types.ts';
 
-/** 旗子可能出現的格子：中線（x = 場地寬度除以 2 的整數部分）上不是牆的格子，照 y 由小到大 */
-export function flagCandidateCells(config: CtfConfig): Position[] {
-  const x = Math.floor(config.boardWidth / 2);
+/**
+ * 旗子可能出現的格子：中線（x = 場地寬度除以 2 的整數部分）上不是牆的格子，照 y 由小到大。
+ * v0.6：照這一場的地圖來算，每場的格數不一定一樣。
+ */
+export function flagCandidateCells(map: GameMap): Position[] {
+  const x = midlineX(map);
   const cells: Position[] = [];
-  for (let y = 0; y < config.boardHeight; y++) {
+  for (let y = 0; y < map.height; y++) {
     const cell = { x, y };
-    if (!isWall(cell, config)) cells.push(cell);
+    if (!isWall(cell, map)) cells.push(cell);
   }
   return cells;
 }
@@ -22,9 +25,9 @@ export function flagCandidateCells(config: CtfConfig): Position[] {
  * 候選格去掉上一面旗子出現的那一格，再用亂數抽一個。每抽一次剛好取一次亂數。
  * 會把新的亂數狀態寫回 state。
  */
-export function drawFlagPosition(state: GameState, config: CtfConfig): Position {
+export function drawFlagPosition(state: GameState): Position {
   const last = state.lastFlagSpawn;
-  const candidates = flagCandidateCells(config).filter((cell) => !last || !samePosition(cell, last));
+  const candidates = flagCandidateCells(state.map).filter((cell) => !last || !samePosition(cell, last));
   const { value, rngState } = nextRandom(state.rngState);
   state.rngState = rngState;
   return { ...candidates[pickIndex(value, candidates.length)]! };
@@ -70,7 +73,7 @@ export function advanceFlagStage(state: GameState, config: CtfConfig, events: Ga
 
 /** 抽出位置、進入預告；預告回合數是 0 時直接出現 */
 function announceFlag(state: GameState, config: CtfConfig, events: GameEvent[]): void {
-  const position = drawFlagPosition(state, config);
+  const position = drawFlagPosition(state);
   if (config.flagAnnounceRounds > 0) {
     state.flag = { status: 'announced', roundsLeft: config.flagAnnounceRounds, nextPosition: position };
     events.push({ type: 'flagAnnounced', position: { ...position }, roundsLeft: config.flagAnnounceRounds });

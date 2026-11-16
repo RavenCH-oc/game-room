@@ -1,18 +1,22 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { createAttacker, predictNextPosition } from '../bots/attacker.ts';
-import { createRoundRandom, deriveAiSeed, fnv1a } from '../bots/botRandom.ts';
+import { createRoundRandom, deriveAiSeed } from '../bots/botRandom.ts';
 import { createFlagRunner } from '../bots/flagRunner.ts';
 import { createBot } from '../bots/index.ts';
-import { boardCenter, standbyPoint } from '../bots/pathfinding.ts';
+import { shootingDirection, standbyPoint } from '../bots/pathfinding.ts';
 import { createRandomWalker } from '../bots/randomWalker.ts';
 import { playMatch } from '../scripts/matchRunner.ts';
 import {
+  CLASSIC_MAP_9X9,
   CTF_CONFIG,
+  createInitialState,
+  fnv1a,
   getCharacterView,
   type Action,
   type Bot,
   type CtfConfig,
+  type GameMap,
   type GameState,
 } from '../core/index.ts';
 import { FLAG_FAR_AWAY, makeState } from './helpers.ts';
@@ -83,10 +87,24 @@ describe('第 8 節：範例 AI 共用規定（v0.5）', () => {
     }
   });
 
-  it('待命點：中央往自己家的方向一格，A 隊 (3, 4)、B 隊 (5, 4)', () => {
-    expect(standbyPoint('A', CTF_CONFIG)).toEqual({ x: 3, y: 4 });
-    expect(standbyPoint('B', CTF_CONFIG)).toEqual({ x: 5, y: 4 });
-    expect(boardCenter(CTF_CONFIG)).toEqual({ x: 4, y: 4 });
+  it('待命點：9×9 固定地圖是 A 隊 (3, 4)、B 隊 (5, 4)（中線旁邊靠自己家的直行、離中間橫排最近）', () => {
+    expect(standbyPoint('A', CLASSIC_MAP_9X9)).toEqual({ x: 3, y: 4 });
+    expect(standbyPoint('B', CLASSIC_MAP_9X9)).toEqual({ x: 5, y: 4 });
+  });
+
+  it('v0.6 待命點照新的定義：種子 1 的地圖是 (4, 4)、(6, 4)；種子 2 的地圖是 (4, 5)、(6, 5)', () => {
+    const map1 = createInitialState(CTF_CONFIG, 1).map;
+    expect(standbyPoint('A', map1)).toEqual({ x: 4, y: 4 }); // (4, 5) 是牆，(4, 4) 和 (4, 6) 一樣近，選 y 小的
+    expect(standbyPoint('B', map1)).toEqual({ x: 6, y: 4 });
+    const map2 = createInitialState(CTF_CONFIG, 2).map;
+    expect(standbyPoint('A', map2)).toEqual({ x: 4, y: 5 });
+    expect(standbyPoint('B', map2)).toEqual({ x: 6, y: 5 });
+  });
+
+  it('v0.6 待命點：那一直行全部是牆時，待命點是自己的重生點', () => {
+    const walls = Array.from({ length: 9 }, (_, y) => ({ x: 3, y }));
+    const map: GameMap = { ...CLASSIC_MAP_9X9, walls };
+    expect(standbyPoint('A', map)).toEqual({ x: 0, y: 4 });
   });
 
   it('隱藏階段：AI 往待命點走，到了不動', () => {
@@ -211,7 +229,7 @@ describe('第 8 節：攻擊型 AI（v0.5）', () => {
       flag: { status: 'carried', carrierId: 'B1' },
     });
     const guesses = AI_SEEDS.map((aiSeed) =>
-      predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, CTF_CONFIG, createRoundRandom(aiSeed, 0, 'A1')),
+      predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, createRoundRandom(aiSeed, 0, 'A1')),
     );
     const keys = new Set(guesses.map((guess) => `${guess.x},${guess.y}`));
     expect(keys).toEqual(new Set(['6,1', '7,0']));
@@ -223,7 +241,7 @@ describe('第 8 節：攻擊型 AI（v0.5）', () => {
       B1: { position: { x: 5, y: 2 } },
       flag: { status: 'onGround', position: { x: 5, y: 4 } },
     });
-    const guess = predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, CTF_CONFIG, createRoundRandom(1, 0, 'A1'));
+    const guess = predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, createRoundRandom(1, 0, 'A1'));
     expect(guess).toEqual({ x: 5, y: 3 });
   });
 
@@ -234,7 +252,7 @@ describe('第 8 節：攻擊型 AI（v0.5）', () => {
       B1: { position: { x: 6, y: 2 } },
       flag: { status: 'announced', roundsLeft: 2, nextPosition: { x: 4, y: 2 } },
     });
-    const guess = predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, CTF_CONFIG, createRoundRandom(1, 0, 'A1'));
+    const guess = predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, createRoundRandom(1, 0, 'A1'));
     expect(guess).toEqual({ x: 5, y: 2 });
   });
 
@@ -245,7 +263,7 @@ describe('第 8 節：攻擊型 AI（v0.5）', () => {
       B1: { position: { x: 8, y: 4 } },
       flag: { status: 'hidden', roundsLeft: 2 },
     });
-    const guess = predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, CTF_CONFIG, createRoundRandom(1, 0, 'A1'));
+    const guess = predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, createRoundRandom(1, 0, 'A1'));
     expect(guess).toEqual({ x: 7, y: 4 });
   });
 
@@ -255,7 +273,7 @@ describe('第 8 節：攻擊型 AI（v0.5）', () => {
       B1: { position: { x: 6, y: 2 } },
       flag: { status: 'carried', carrierId: 'A1' },
     });
-    const guess = predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, CTF_CONFIG, createRoundRandom(1, 0, 'A1'));
+    const guess = predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, createRoundRandom(1, 0, 'A1'));
     expect(guess).toEqual({ x: 6, y: 2 });
   });
 
@@ -266,7 +284,7 @@ describe('第 8 節：攻擊型 AI（v0.5）', () => {
       B1: { position: { x: 3, y: 0 } },
       flag: { status: 'onGround', position: { x: 1, y: 0 } },
     });
-    const guess = predictNextPosition(state, state.characters[1]!, { x: 2, y: 0 }, CTF_CONFIG, createRoundRandom(1, 0, 'A1'));
+    const guess = predictNextPosition(state, state.characters[1]!, { x: 2, y: 0 }, createRoundRandom(1, 0, 'A1'));
     expect(guess).toEqual({ x: 3, y: 0 });
     for (const action of decideWithEverySeed((aiSeed) => createAttacker(aiSeed, NO_CHANCE), state)) {
       expect(action).toEqual({ type: 'shoot', direction: 'right' });
@@ -326,13 +344,32 @@ describe('第 8 節：搶旗 AI（v0.5）', () => {
     }
   });
 
-  it('旗子在對手手上：往場地正中央走', () => {
-    const state = makeState({
-      A1: { position: { x: 2, y: 4 } },
+  it('v0.6 對手拿旗時往自己的待命點走，到了不動（不動的機率設成 0）', () => {
+    // 9×9 固定地圖：A 隊待命點 (3, 4)
+    const away = makeState({
+      A1: { position: { x: 1, y: 4 } },
       B1: { position: { x: 7, y: 0 } },
       flag: { status: 'carried', carrierId: 'B1' },
     });
-    for (const action of decideWithEverySeed((aiSeed) => createFlagRunner(aiSeed, NO_CHANCE), state)) {
+    const arrived = makeState({
+      A1: { position: { x: 3, y: 4 } },
+      B1: { position: { x: 7, y: 0 } },
+      flag: { status: 'carried', carrierId: 'B1' },
+    });
+    for (const action of decideWithEverySeed((aiSeed) => createFlagRunner(aiSeed, NO_CHANCE), away)) {
+      expect(action).toEqual({ type: 'move', direction: 'right' });
+    }
+    for (const action of decideWithEverySeed((aiSeed) => createFlagRunner(aiSeed, NO_CHANCE), arrived)) {
+      expect(action).toEqual({ type: 'stay' });
+    }
+    // 11×11 隨機地圖（種子 1）：待命點 (4, 4)；A1 在 (2, 4) 往右走
+    const randomMap = makeState({
+      map: createInitialState(CTF_CONFIG, 1).map,
+      A1: { position: { x: 2, y: 4 } },
+      B1: { position: { x: 9, y: 9 } },
+      flag: { status: 'carried', carrierId: 'B1' },
+    });
+    for (const action of decideWithEverySeed((aiSeed) => createFlagRunner(aiSeed, NO_CHANCE), randomMap)) {
       expect(action).toEqual({ type: 'move', direction: 'right' });
     }
   });
@@ -358,7 +395,7 @@ describe('第 8 節：隨機亂走 AI（v0.5）', () => {
 });
 
 describe('第 8、9 節：AI 對打（v0.5）', () => {
-  it('攻擊型對攻擊型，種子 1 到 30 各打一場，沒有任何一場是 0:0 平手', () => {
+  it('攻擊型對攻擊型，種子 1 到 30 各打一場（v0.6：用各自的隨機地圖），沒有任何一場是 0:0 平手', () => {
     for (let seed = 1; seed <= 30; seed++) {
       const final = playMatch('attacker', 'attacker', seed);
       const zeroZeroDraw = final.result?.reason === 'draw' && final.scores.A === 0 && final.scores.B === 0;
@@ -366,7 +403,7 @@ describe('第 8、9 節：AI 對打（v0.5）', () => {
     }
   });
 
-  it('搶旗對搶旗，種子 1 到 30 各打一場，沒有任何一場是 0:0 平手', () => {
+  it('搶旗對搶旗，種子 1 到 30 各打一場（v0.6：用各自的隨機地圖），沒有任何一場是 0:0 平手', () => {
     for (let seed = 1; seed <= 30; seed++) {
       const final = playMatch('runner', 'runner', seed);
       const zeroZeroDraw = final.result?.reason === 'draw' && final.scores.A === 0 && final.scores.B === 0;
@@ -395,6 +432,63 @@ describe('第 8、9 節：AI 對打（v0.5）', () => {
     expect(second).toBe(first);
     expect(first.split('\n')[0]).toBe('種子：7');
     expect(first).toContain('旗子還沒出現，2 回合後公布位置');
-    expect(first).toMatch(/旗子 2 回合後出現在 \(4, \d\)/);
+    expect(first).toMatch(/旗子 2 回合後出現在 \(5, \d+\)/);
+  });
+});
+
+describe('第 8 節：範例 AI 用的是場面裡的地圖（v0.6）', () => {
+  // 一張和預設不同的 9×9 固定地圖：(1, 4)、(2, 4) 擋在 A 家門口，(4, 1) 不是牆
+  const TEST_MAP: GameMap = {
+    width: 9,
+    height: 9,
+    spawnPoints: { A: { x: 0, y: 4 }, B: { x: 8, y: 4 } },
+    walls: [
+      { x: 1, y: 4 },
+      { x: 2, y: 4 },
+    ],
+  };
+
+  it('找路時會繞過那張地圖的牆', () => {
+    // A1 拿旗在 (3, 4) 要回家 (0, 4)：直走會撞到 (2, 4)，最短路要往上或往下繞
+    const state = makeState({
+      map: TEST_MAP,
+      A1: { position: { x: 3, y: 4 } },
+      B1: { position: { x: 8, y: 8 } },
+      flag: { status: 'carried', carrierId: 'A1' },
+    });
+    const directions = new Set(decideWithEverySeed((aiSeed) => createFlagRunner(aiSeed, NO_CHANCE), state).map(moveDirection));
+    expect(directions).toEqual(new Set(['up', 'down']));
+  });
+
+  it('預設地圖的牆在這張地圖上不存在：(4, 0) 往 (4, 2) 可以直接往下走', () => {
+    // 9×9 固定地圖上 (4, 1) 是牆要繞路；這張地圖沒有，所以直接往下
+    const state = makeState({
+      map: TEST_MAP,
+      A1: { position: { x: 4, y: 0 } },
+      B1: { position: null, respawnCountdown: 2 },
+      flag: { status: 'onGround', position: { x: 4, y: 2 } },
+    });
+    for (const action of decideWithEverySeed((aiSeed) => createFlagRunner(aiSeed, NO_CHANCE), state)) {
+      expect(action).toEqual({ type: 'move', direction: 'down' });
+    }
+  });
+
+  it('判斷射擊線時用那張地圖的牆', () => {
+    // 9×9 固定地圖上 (4, 0) 往下被 (4, 1) 擋住；這張地圖可以打到 (4, 2)
+    expect(shootingDirection({ x: 4, y: 0 }, { x: 4, y: 2 }, CLASSIC_MAP_9X9, 3)).toBeNull();
+    expect(shootingDirection({ x: 4, y: 0 }, { x: 4, y: 2 }, TEST_MAP, 3)).toBe('down');
+    // 這張地圖 (2, 4) 是牆：從 (3, 4) 往左打不到 (1, 4) 後面的 (0, 4)
+    expect(shootingDirection({ x: 3, y: 4 }, { x: 0, y: 4 }, TEST_MAP, 3)).toBeNull();
+
+    const state = makeState({
+      map: TEST_MAP,
+      A1: { position: { x: 4, y: 0 } },
+      B1: { position: { x: 4, y: 2 } },
+      flag: { status: 'onGround', position: { x: 8, y: 8 } },
+    });
+    const config = withChances({ attackerAimAtCurrentChance: 1, attackerSkipShootingChance: 0 });
+    for (const action of decideWithEverySeed((aiSeed) => createAttacker(aiSeed, config), state)) {
+      expect(action).toEqual({ type: 'shoot', direction: 'down' });
+    }
   });
 });

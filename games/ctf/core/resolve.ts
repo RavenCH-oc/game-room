@@ -105,7 +105,7 @@ export function resolveRound(
     const carrier = next.characters.find((character) => character.id === carrierId);
     if (
       carrier?.position &&
-      samePosition(carrier.position, config.spawnPoints[carrier.team])
+      samePosition(carrier.position, next.map.spawnPoints[carrier.team])
     ) {
       next.scores[carrier.team] += 1;
       scoredThisRound = true;
@@ -305,7 +305,8 @@ function traceBullet(
   let cell = from;
   for (let distance = 1; distance <= config.shootRange; distance++) {
     const nextCell = step(cell, direction);
-    if (!isInsideBoard(nextCell, config) || isWall(nextCell, config)) break;
+    // v0.6：牆壁和場地大小照場面裡的地圖
+    if (!isInsideBoard(nextCell, state.map) || isWall(nextCell, state.map)) break;
     cell = nextCell;
     const found = state.characters.find((character) => {
       if (character.id === shooterId) return false;
@@ -341,9 +342,10 @@ function resolveMovement(
     const from = character.position;
     const to = step(from, action.direction);
     let reason: MoveBlockReason | null = null;
-    if (!isInsideBoard(to, config)) reason = 'outOfBounds';
-    else if (isWall(to, config)) reason = 'wall';
-    else if (isEnemySpawn(to, character.team, config)) reason = 'enemySpawn';
+    // v0.6：牆壁、場地大小、重生點照場面裡的地圖
+    if (!isInsideBoard(to, next.map)) reason = 'outOfBounds';
+    else if (isWall(to, next.map)) reason = 'wall';
+    else if (isEnemySpawn(to, character.team, next.map)) reason = 'enemySpawn';
 
     if (reason) {
       events.push({ type: 'moveBlocked', characterId: character.id, from: { ...from }, direction: action.direction, reason });
@@ -421,7 +423,7 @@ function resolveMovement(
  */
 function resetAllToSpawn(next: GameState, config: CtfConfig, events: GameEvent[]): void {
   for (const character of next.characters) {
-    character.position = { ...config.spawnPoints[character.team] };
+    character.position = { ...next.map.spawnPoints[character.team] };
     character.hp = config.maxHp;
     character.respawnCountdown = 0;
     character.invulnerableRoundsLeft = 0;
@@ -451,7 +453,7 @@ function resolveCountdowns(
       character.respawnCountdown -= 1;
     }
     if (character.respawnCountdown <= 0) {
-      const spawn = config.spawnPoints[character.team];
+      const spawn = next.map.spawnPoints[character.team];
       character.position = { ...spawn };
       character.respawnCountdown = 0;
       character.hp = config.maxHp;

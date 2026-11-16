@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CTF_CONFIG, createInitialState, getCharacterView, resolveRound } from '../core/index.ts';
+import { CLASSIC_MAP_9X9, CTF_CONFIG, createInitialState, getCharacterView, resolveRound } from '../core/index.ts';
 import { createFlagRunner } from '../bots/flagRunner.ts';
 import { createRandomWalker } from '../bots/randomWalker.ts';
 import { FLAG_FAR_AWAY, makeState, positionOf, shoot } from './helpers.ts';
 
 describe('第 2 節：場地', () => {
-  it('開場：A 在 (0, 4)、B 在 (8, 4)；v0.5：場上沒有旗子（隱藏，剩 2 回合）', () => {
-    const state = createInitialState();
+  it('開場（9×9 固定地圖）：A 在 (0, 4)、B 在 (8, 4)；v0.5：場上沒有旗子（隱藏，剩 2 回合）', () => {
+    const state = createInitialState(CTF_CONFIG, 1, CLASSIC_MAP_9X9);
     expect(positionOf(state, 'A1')).toEqual({ x: 0, y: 4 });
     expect(positionOf(state, 'B1')).toEqual({ x: 8, y: 4 });
     expect(state.flag).toEqual({ status: 'hidden', roundsLeft: 2 });
@@ -25,8 +25,8 @@ describe('第 2 節：場地', () => {
 describe('第 7 節：設定檔', () => {
   it('初版數值和規則文件一致', () => {
     expect(CTF_CONFIG).toMatchObject({
-      boardWidth: 9,
-      boardHeight: 9,
+      boardWidth: 11,
+      boardHeight: 11,
       roundSeconds: 3,
       shootRange: 3,
       maxHp: 3,
@@ -45,11 +45,24 @@ describe('第 7 節：設定檔', () => {
         attackerSkipShootingChance: 0.15,
         flagRunnerStayChance: 0.1,
       },
+      // v0.6：地圖生成參數
+      map: {
+        mirror: true,
+        minWalls: 14,
+        maxWalls: 18,
+        maxSegmentLength: 3,
+        spawnClearance: 2,
+        minOpenMidlineCells: 7,
+        maxPlacementAttempts: 200,
+        maxMapDraws: 1000,
+      },
     });
     // v0.5：「旗子重生等待回合數」和「旗子出現位置的順序」移除
     expect(CTF_CONFIG).not.toHaveProperty('flagReturnRounds');
     expect(CTF_CONFIG).not.toHaveProperty('flagSpawnOrder');
-    expect(CTF_CONFIG.walls).toHaveLength(6);
+    // v0.6：重生點、牆壁不再是設定
+    expect(CTF_CONFIG).not.toHaveProperty('spawnPoints');
+    expect(CTF_CONFIG).not.toHaveProperty('walls');
   });
 });
 

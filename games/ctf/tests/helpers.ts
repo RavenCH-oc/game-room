@@ -1,11 +1,14 @@
 // 測試用的小工具：快速擺出想要的場面。
+// v0.6：makeState 預設用原本的 9×9 固定地圖（CLASSIC_MAP_9X9），讓 v0.5 以前的測試照原本的座標繼續用。
 
 import {
+  CLASSIC_MAP_9X9,
   CTF_CONFIG,
   createInitialState,
   type Action,
   type Character,
   type FlagState,
+  type GameMap,
   type GameState,
   type Phase,
   type Position,
@@ -29,6 +32,10 @@ interface StateSetup {
   knockdowns?: Record<Team, number>;
   round?: number;
   phase?: Phase;
+  /** 比賽種子（預設 1） */
+  seed?: number;
+  /** 地圖（預設 9×9 固定地圖） */
+  map?: GameMap;
 }
 
 function applySetup(character: Character, setup: CharacterSetup): void {
@@ -40,7 +47,7 @@ function applySetup(character: Character, setup: CharacterSetup): void {
 
 /** 從開場出發，只改掉指定的部分 */
 export function makeState(setup: StateSetup = {}): GameState {
-  const state = createInitialState();
+  const state = createInitialState(CTF_CONFIG, setup.seed ?? 1, setup.map ?? CLASSIC_MAP_9X9);
   if (setup.A1) applySetup(state.characters[0]!, setup.A1);
   if (setup.B1) applySetup(state.characters[1]!, setup.B1);
   for (const extra of setup.extra ?? []) {

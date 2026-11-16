@@ -29,3 +29,16 @@ export function nextRandom(rngState: number): { value: number; rngState: number 
 export function pickIndex(value: number, count: number): number {
   return Math.floor(value * count);
 }
+
+/**
+ * 32 位元 FNV-1a 雜湊：把一段文字變成 0 到 4294967295 的整數（v0.6 搬到核心，和範例 AI 共用）。
+ * 算法：從 2166136261 開始，每個字元先 XOR 字元碼，再乘以 16777619（只留 32 位元、不帶正負號）。
+ */
+export function fnv1a(text: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index++) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash >>> 0;
+}
