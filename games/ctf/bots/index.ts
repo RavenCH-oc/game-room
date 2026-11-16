@@ -9,6 +9,7 @@ import { createAttacker } from './attacker.ts';
 import { deriveAiSeed } from './botRandom.ts';
 import { createFlagRunner } from './flagRunner.ts';
 import { createRandomWalker } from './randomWalker.ts';
+import { createCodex } from './codex/index.ts';
 
 /** 建立 AI 時拿到的東西（docs/ctf-bots.md 第 1 節） */
 export interface BotContext {
@@ -39,6 +40,7 @@ const BOT_REGISTRY: BotEntry[] = [
   { id: 'attacker', name: '攻擊', create: ({ aiSeed, config }) => createAttacker(aiSeed, config) },
   { id: 'runner', name: '搶旗', create: ({ aiSeed, config }) => createFlagRunner(aiSeed, config) },
   { id: 'random', name: '亂走', create: ({ aiSeed }) => createRandomWalker(aiSeed) },
+  { id: 'codex', name: 'Codex', create: ({ aiSeed, config }) => createCodex(aiSeed, config) },
 ];
 
 /** 代號的格式：英文小寫開頭，後面可以接英文小寫或數字 */
