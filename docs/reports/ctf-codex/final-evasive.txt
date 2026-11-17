@@ -1,0 +1,25 @@
+批次對打：AI 一 = Codex（codex），AI 二 = evasive（evasive）
+種子 100001 到 100050（共 50 個），每個種子打兩場：AI 一在 A 隊一場、在 B 隊一場
+
+總場數：100
+AI 一：勝 86、負 11、平手 3（100 場），勝率 86.0%（平手不算贏）
+  AI 一在 A 隊時：勝 44、負 4、平手 2（50 場）
+  AI 一在 B 隊時：勝 42、負 7、平手 1（50 場）
+平均回合數：181.36
+平均分數：AI 一 1.48、AI 二 0.52
+平均擊倒數：AI 一 0.04、AI 二 0.06
+打到第 200 回合（含）以後才結束：77 場
+每一步花的時間：AI 一 平均 3.758 毫秒、最久 11.525 毫秒；AI 二 平均 0.008 毫秒、最久 2.000 毫秒
+
+AI 一輸掉的前 10 場（可以用後面的指令重看）：
+  種子 100003，AI 一在 A 隊 → npm run ctf:match -- codex evasive 100003
+  種子 100015，AI 一在 B 隊 → npm run ctf:match -- evasive codex 100015
+  種子 100016，AI 一在 A 隊 → npm run ctf:match -- codex evasive 100016
+  種子 100021，AI 一在 A 隊 → npm run ctf:match -- codex evasive 100021
+  種子 100021，AI 一在 B 隊 → npm run ctf:match -- evasive codex 100021
+  種子 100025，AI 一在 B 隊 → npm run ctf:match -- evasive codex 100025
+  種子 100031，AI 一在 B 隊 → npm run ctf:match -- evasive codex 100031
+  種子 100039，AI 一在 B 隊 → npm run ctf:match -- evasive codex 100039
+  種子 100046，AI 一在 B 隊 → npm run ctf:match -- evasive codex 100046
+  種子 100047，AI 一在 A 隊 → npm run ctf:match -- codex evasive 100047
+結果 SHA256: 03b1234417e74c93ce355a98e6b5c0bba1b42eddf1df49a9afd2624597cde197
