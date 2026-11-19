@@ -343,6 +343,42 @@ input[type='text'] {
   }
 }
 
+/* v0.7：射程變短時顯示「射程 N」（在角色下方） */
+.piece .range-label {
+  position: absolute;
+  bottom: -38%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.55rem;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: rgba(17, 24, 39, 0.8);
+  color: #fff;
+  pointer-events: none;
+}
+
+/* v0.7：過熱：橘色外框加「過熱」字樣（在角色上方） */
+.piece.overheated {
+  outline: 3px solid #f97316;
+}
+
+.piece .overheat-label {
+  position: absolute;
+  top: -38%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.55rem;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: #f97316;
+  color: #fff;
+  pointer-events: none;
+}
+
 .piece .carried-flag {
   position: absolute;
   top: -30%;

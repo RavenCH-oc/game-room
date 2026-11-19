@@ -36,6 +36,8 @@ export function createInitialState(
       hp: config.maxHp,
       respawnCountdown: 0,
       invulnerableRoundsLeft: 0,
+      stationaryShots: 0,
+      overheated: false,
     },
     {
       id: 'B1',
@@ -44,6 +46,8 @@ export function createInitialState(
       hp: config.maxHp,
       respawnCountdown: 0,
       invulnerableRoundsLeft: 0,
+      stationaryShots: 0,
+      overheated: false,
     },
   ];
   const state: GameState = {
@@ -56,6 +60,7 @@ export function createInitialState(
     // 先放一個暫時的值，下面馬上照設定換成正確的階段
     flag: { status: 'hidden', roundsLeft: config.flagHiddenRounds },
     lastFlagSpawn: null,
+    flagIdleRounds: 0,
     result: null,
     seed,
     rngState: seed,

@@ -34,6 +34,14 @@ export interface CtfConfig {
   dropFlagWhenHit: boolean;
   /** 得分後重新開局（v0.5，開關）：有人得分的那一回合，射擊結算完所有角色回到重生點、生命補滿 */
   resetOnScore: boolean;
+  /** 原地連射懲罰（v0.7，開關）：原地連續開槍射程變短、到門檻過熱。關掉時射程永遠是射擊距離 */
+  stationaryShotPenalty: boolean;
+  /** 最短射程（v0.7）：原地連射時射程最少幾格 */
+  minShootRange: number;
+  /** 過熱門檻（v0.7）：原地連射次數到這個數的倍數時，下一回合過熱。0 表示不會過熱 */
+  overheatThreshold: number;
+  /** 旗子重抽回合數（v0.7）：旗子在地上、閒置到這個回合數就重抽。0 表示不重抽 */
+  flagRerollRounds: number;
   /** 範例 AI 的機率（v0.5，規則第 7、8 節），0 到 1 */
   bots: BotChances;
   /** 隨機地圖的生成參數（v0.6，規則第 2 節「隨機地圖」） */
@@ -84,6 +92,10 @@ export const CTF_CONFIG: CtfConfig = {
   overtimeMaxRounds: 50,
   dropFlagWhenHit: true,
   resetOnScore: false,
+  stationaryShotPenalty: true,
+  minShootRange: 1,
+  overheatThreshold: 3,
+  flagRerollRounds: 20,
   bots: {
     attackerAimAtCurrentChance: 0.25,
     attackerSkipShootingChance: 0.15,

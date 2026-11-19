@@ -27,6 +27,10 @@ export interface Character {
   respawnCountdown: number;
   /** 無敵還剩幾回合（0 表示沒有無敵） */
   invulnerableRoundsLeft: number;
+  /** 原地連射次數（v0.7，公開）：原地連續開槍的次數，成功移動一步就歸零。射程照這個變短 */
+  stationaryShots: number;
+  /** 過熱（v0.7，公開）：這一回合不能開槍。只持續一回合 */
+  overheated: boolean;
 }
 
 /**
@@ -91,6 +95,11 @@ export interface PublicGameState {
    * 開局還沒出現過旗子時是 null。
    */
   lastFlagSpawn: Position | null;
+  /**
+   * 旗子閒置回合數（v0.7，公開）：旗子在地上或被拿著、而且沒有出現／被撿起／得分的連續回合數。
+   * 旗子在地上時到了「旗子重抽回合數」就重抽。隱藏和預告階段是 0。
+   */
+  flagIdleRounds: number;
   /** 比賽結束後才有值 */
   result: GameResult | null;
 }
@@ -121,6 +130,8 @@ export type GameEvent =
       dodgedId: string | null;
       /** v0.4：被打到的人回合開始時不在這條線上的第一個位置（走進射擊線） */
       movedIntoLine: boolean;
+      /** v0.7：這一槍的射程（照開槍者回合開始時的原地連射次數） */
+      range: number;
     }
   | { type: 'shotBlockedByInvulnerable'; shooterId: string; targetId: string }
   | { type: 'damaged'; characterId: string; byId: string; damage: number; hpLeft: number }
@@ -136,6 +147,10 @@ export type GameEvent =
   | { type: 'flagAppeared'; position: Position }
   /** v0.5：「得分後重新開局」開關打開時，得分那一回合所有角色回到重生點、生命補滿 */
   | { type: 'resetAfterScore' }
+  /** v0.7：原地連續開槍到過熱門檻，這個角色下一回合不能開槍 */
+  | { type: 'overheated'; characterId: string }
+  /** v0.7：旗子太久沒人撿，消失、重新抽位置（position 是消失的那一格） */
+  | { type: 'flagRerolled'; position: Position }
   | { type: 'respawned'; characterId: string; position: Position; hp: number }
   | { type: 'overtimeStarted' }
   | { type: 'gameOver'; result: GameResult };

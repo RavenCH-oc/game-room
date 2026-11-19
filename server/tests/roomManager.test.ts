@@ -849,3 +849,48 @@ describe('第 3 節：開房的對手選單來自 AI 登記表', () => {
     expect(manager.roomCount).toBe(0);
   });
 });
+
+describe('第 5、10 節：原地連射與過熱、旗子閒置（v0.7）', () => {
+  it('送給瀏覽器的場面裡有每個角色的原地連射次數和過熱、旗子閒置回合數', () => {
+    const manager = classicManager();
+    const { a, b } = startPlaying(manager);
+    actionFor(a, { type: 'shoot', direction: 'right' });
+    actionFor(b, { type: 'stay' });
+    for (const client of [a, b]) {
+      const game = client.lastRoom().game!;
+      expect(game.characters.map((character) => [character.id, character.stationaryShots, character.overheated])).toEqual([
+        ['A1', 1, false],
+        ['B1', 0, false],
+      ]);
+      expect(game.flagIdleRounds).toBe(0);
+    }
+  });
+
+  it('過熱的真人送出射擊，結算時被當成不動，伺服器不會當掉', () => {
+    const manager = classicManager();
+    const { a, b } = startPlaying(manager);
+    // A 原地連開三槍 → 下一回合過熱
+    for (let shot = 0; shot < 3; shot++) {
+      actionFor(a, { type: 'shoot', direction: 'up' });
+      actionFor(b, { type: 'stay' });
+    }
+    expect(a.lastRoom().game!.characters[0]).toMatchObject({ stationaryShots: 3, overheated: true });
+
+    // 過熱的回合送出射擊：照樣收下、結算時當成不動
+    const before = a.messages.length;
+    actionFor(a, { type: 'shoot', direction: 'up' });
+    actionFor(b, { type: 'stay' });
+    const resolved = a.messages.slice(before).find((message) => message.type === 'room' && message.events);
+    expect(resolved?.type === 'room' && resolved.events).toContainEqual(
+      expect.objectContaining({ type: 'invalidAction', characterId: 'A1', reason: '過熱，這回合不能開槍' }),
+    );
+    const room = a.lastRoom();
+    expect(room.phase).toBe('playing');
+    expect(room.game!.round).toBe(4);
+    expect(room.game!.characters[0]).toMatchObject({ position: { x: 0, y: 4 }, stationaryShots: 3, overheated: false });
+    // 下一回合照常進行
+    actionFor(a, { type: 'stay' });
+    actionFor(b, { type: 'stay' });
+    expect(a.lastRoom().game!.round).toBe(5);
+  });
+});

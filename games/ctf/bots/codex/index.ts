@@ -1,5 +1,5 @@
 import {
-  CTF_CONFIG, DIRECTIONS, otherTeam, resolveRound, samePosition, step,
+  CTF_CONFIG, DIRECTIONS, otherTeam, resolveRound, samePosition, shootRangeOf, step,
   type Action, type Bot, type Character, type CtfConfig, type GameState, type Position, type PublicGameState,
 } from '../../core/index.ts';
 import { createRoundRandom } from '../botRandom.ts';
@@ -17,7 +17,7 @@ export interface StrategyOptions {
 export const DEFAULT_STRATEGY: Readonly<StrategyOptions> = { safety: 0.25, future: 1, learning: true, depth: 2, mixed: true };
 
 /** 合法候選；必定打不到人的射擊和不動等價，先剪除以節省推演。 */
-export function legalActions(state: PublicGameState, who: Character, geo: Geometry): Action[] {
+export function legalActions(state: PublicGameState, who: Character, geo: Geometry, config: CtfConfig = CTF_CONFIG): Action[] {
   if (!who.position) return [{ type: 'stay' }];
   const actions: Action[] = [{ type: 'stay' }];
   const directions = state.map.spawnPoints[who.team].x < state.map.width / 2 ? [0, 1, 2, 3] : [0, 1, 3, 2];
@@ -25,10 +25,12 @@ export function legalActions(state: PublicGameState, who: Character, geo: Geomet
     const direction = DIRECTIONS[d]!;
     if (geo.canMove(who.position!, d, who.team)) actions.push({ type: 'move', direction });
   });
+  // v0.7：可以開的槍照開槍者現在的射程；過熱的角色沒有射擊這個選項
+  const shots = geo.shotsFor(shootRangeOf(who, config));
   if (state.flag.status === 'carried' && state.flag.carrierId === who.id) actions.push({ type: 'dropFlag' });
-  else directions.forEach(d => {
+  else if (!who.overheated) directions.forEach(d => {
     const possible = state.characters.some(c => c.team !== who.team && c.position && c.invulnerableRoundsLeft === 0 &&
-      [geo.key(c.position), ...geo.next[geo.key(c.position)]!].some(p => p >= 0 && geo.shots[geo.key(who.position!)]![p] === d));
+      [geo.key(c.position), ...geo.next[geo.key(c.position)]!].some(p => p >= 0 && shots[geo.key(who.position!)]![p] === d));
     if (possible) actions.push({ type: 'shoot', direction: DIRECTIONS[d]! });
   });
   return actions;
@@ -46,7 +48,7 @@ function goal(state: PublicGameState, who: Character): Position {
 }
 
 /** 對所有可行下一步保留機率，沒有使用對手代號、內部記憶或未結算動作。 */
-function prior(state: PublicGameState, who: Character, rival: Character, actions: Action[], geo: Geometry, aggression: number, inertia = 0): number[] {
+function prior(state: PublicGameState, who: Character, rival: Character, actions: Action[], geo: Geometry, aggression: number, inertia = 0, config: CtfConfig = CTF_CONFIG): number[] {
   if (!who.position) return [1];
   const target = goal(state, who);
   const distance = geo.distance(who.position, target, who.team);
@@ -60,7 +62,9 @@ function prior(state: PublicGameState, who: Character, rival: Character, actions
     return after < distance ? (waiting ? 0.03 : 1) : 0.025;
   });
   const shotWeights = actions.map(() => 0);
-  if (rival.position && rival.invulnerableRoundsLeft === 0) {
+  // v0.7：猜 who 會不會開槍、往哪裡開，照 who 現在的射程；過熱時不會開槍
+  const whoShots = geo.shotsFor(shootRangeOf(who, config));
+  if (rival.position && rival.invulnerableRoundsLeft === 0 && !who.overheated) {
     const rivalGoal = goal(state, rival);
     const before = geo.distance(rival.position, rivalGoal, rival.team);
     const targets = [{ p: rival.position, weight: 0.35 }];
@@ -72,7 +76,7 @@ function prior(state: PublicGameState, who: Character, rival: Character, actions
     }
     if (!candidates.length) targets[0]!.weight = 1;
     for (const { p, weight } of targets) {
-      const d = geo.shots[geo.key(who.position)]![geo.key(p)]!;
+      const d = whoShots[geo.key(who.position)]![geo.key(p)]!;
       if (d < 0) continue;
       const i = actions.findIndex(a => a.type === 'shoot' && a.direction === DIRECTIONS[d]);
       if (i >= 0) shotWeights[i]! += weight;
@@ -128,7 +132,8 @@ function evaluate(state: PublicGameState, selfId: string, geo: Geometry, config:
         for (let d = 0; d < 4; d++) {
           if (!geo.canMove(carrier.position, d, carrier.team)) continue;
           const to = step(carrier.position, DIRECTIONS[d]!);
-          if (geo.shots[geo.key(defender.position)]![geo.key(to)]! < 0) {
+          // v0.7：持旗者下一步安不安全，照防守者現在的射程
+          if (geo.shotsFor(shootRangeOf(defender, config))[geo.key(defender.position)]![geo.key(to)]! < 0) {
             safe++;
             if (geo.distance(to, state.map.spawnPoints[carrier.team], carrier.team) < homeDistance) progress++;
           }
@@ -168,7 +173,8 @@ export function createCodex(aiSeed: number, config: CtfConfig = CTF_CONFIG, opti
       const stayed = enemy.position && samePosition(enemy.position, previous.enemy.position);
       idleStreak = stayed ? idleStreak + 1 : 0;
       if (previous.self.hp > me.hp) attackEvidence += 2;
-      else if (geo.shots[geo.key(previous.enemy.position)]![geo.key(previous.self.position)]! >= 0) {
+      // v0.7：照對手上一回合的射程
+      else if (geo.shotsFor(shootRangeOf(previous.enemy, config))[geo.key(previous.enemy.position)]![geo.key(previous.self.position)]! >= 0) {
         if (stayed) attackEvidence += 0.2;
         else passiveEvidence += 0.25;
       }
@@ -181,9 +187,9 @@ export function createCodex(aiSeed: number, config: CtfConfig = CTF_CONFIG, opti
       (state.scores[me.team] === state.scores[enemy.team] && state.knockdowns[me.team] > state.knockdowns[enemy.team]);
     const valueOf = (s: PublicGameState): number => evaluate(s, selfId, geo!, config, options.future) -
       (leading || s.result ? 0 : Math.min(24, (visits.get(fingerprint(s)) ?? 0) * 1.2));
-    const mine = legalActions(state, me, geo);
-    const theirs = legalActions(state, enemy, geo);
-    const probabilities = prior(state, enemy, me, theirs, geo, Math.max(0.25, Math.min(0.9, attackEvidence / (attackEvidence + passiveEvidence))), inertia);
+    const mine = legalActions(state, me, geo, config);
+    const theirs = legalActions(state, enemy, geo, config);
+    const probabilities = prior(state, enemy, me, theirs, geo, Math.max(0.25, Math.min(0.9, attackEvidence / (attackEvidence + passiveEvidence))), inertia, config);
     const random = createRoundRandom(aiSeed, state.round, selfId);
     const aggression = Math.max(0.25, Math.min(0.9, attackEvidence / (attackEvidence + passiveEvidence)));
     const combine = (values: number[], weights: number[]): number => (1 - options.safety) *
@@ -192,10 +198,10 @@ export function createCodex(aiSeed: number, config: CtfConfig = CTF_CONFIG, opti
       if (node.result) return valueOf(node);
       const self = node.characters.find(c => c.id === selfId)!;
       const opponent = node.characters.find(c => c.id === enemy.id)!;
-      const responses = legalActions(node, opponent, geo!);
-      const weights = prior(node, opponent, self, responses, geo!, aggression, opponent.position && enemy.position && samePosition(opponent.position, enemy.position) ? inertia : 0);
+      const responses = legalActions(node, opponent, geo!, config);
+      const weights = prior(node, opponent, self, responses, geo!, aggression, opponent.position && enemy.position && samePosition(opponent.position, enemy.position) ? inertia : 0, config);
       let value = -Infinity;
-      for (const action of legalActions(node, self, geo!)) {
+      for (const action of legalActions(node, self, geo!, config)) {
         const values = responses.map(response => valueOf(simulatePublic(node, { [selfId]: action, [enemy.id]: response }, config)));
         value = Math.max(value, combine(values, weights));
       }

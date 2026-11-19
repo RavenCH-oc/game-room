@@ -27,20 +27,25 @@ export function createGeometry(map: GameMap, range: number) {
       return dist;
     });
   }
-  const shots = cells.map((_, from) => {
+  // v0.7：射程會因原地連射變短，每一種射程（0 到 range）各建一張射線表，用的時候照角色現在的射程挑。
+  const shotsByRange = Array.from({ length: range + 1 }, (_, r) => cells.map((_, from) => {
     const line = new Int8Array(size).fill(-1);
     for (let d = 0; d < DIRECTIONS.length; d++) {
       let at = from;
-      for (let n = 0; n < range; n++) {
+      for (let n = 0; n < r; n++) {
         at = next[at]![d]!;
         if (at < 0) break;
         line[at] = d;
       }
     }
     return line;
-  });
+  }));
+  /** 射程 range 的射線表（原本的那一張，研究工具沿用） */
+  const shots = shotsByRange[range]!;
   return {
     key, cells, next, shots,
+    /** 指定射程的射線表；超出範圍時夾在 0 到 range 之間 */
+    shotsFor: (r: number) => shotsByRange[Math.max(0, Math.min(range, r))]!,
     distance: (from: Position, to: Position, team: Team): number => paths[team][key(to)]![key(from)]!,
     canMove: (from: Position, d: number, team: Team): boolean => {
       const to = next[key(from)]![d]!;

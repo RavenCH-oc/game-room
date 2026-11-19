@@ -10,6 +10,7 @@ import {
   createInitialState,
   getCharacterView,
   resolveRound,
+  shootRangeOf,
   type ActionMap,
   type Bot,
   type CtfConfig,
@@ -82,13 +83,13 @@ export function runMatch(botA: string, botB: string, seed: number, config: CtfCo
   print('');
   print('開場');
   print(renderBoard(opening));
-  print(describeStatus(opening));
+  print(describeStatus(opening, config));
 
   const state = playGame(bots, seed, config, (current, events, wasOvertime) => {
     print('');
     print(`── 第 ${current.round} 回合${wasOvertime ? '（延長賽）' : ''} ──`);
     print(renderBoard(current));
-    print(describeStatus(current));
+    print(describeStatus(current, config));
     for (const event of events) {
       const text = describeEvent(event);
       if (text) print(`  · ${text}`);
@@ -113,12 +114,16 @@ export function botLabel(id: string): string {
 }
 
 /** 場地下方的狀態列：分數、擊倒數、每個角色的生命值、旗子的階段 */
-function describeStatus(current: PublicGameState): string {
+function describeStatus(current: PublicGameState, config: CtfConfig): string {
   const hpText = current.characters
     .map((character) => {
       if (!character.position) return `${character.id} 倒地（${character.respawnCountdown} 回合後重生）`;
       const invulnerable = character.invulnerableRoundsLeft > 0 ? '（無敵）' : '';
-      return `${character.id} 生命 ${character.hp}${invulnerable}`;
+      // v0.7：射程比射擊距離短時印出目前射程，過熱時印「過熱」
+      const range = shootRangeOf(character, config);
+      const rangeText = range < config.shootRange ? `（射程 ${range}）` : '';
+      const overheated = character.overheated ? '（過熱）' : '';
+      return `${character.id} 生命 ${character.hp}${invulnerable}${rangeText}${overheated}`;
     })
     .join('   ');
   return (
@@ -185,6 +190,10 @@ function describeEvent(event: GameEvent): string | null {
       return `旗子出現在 (${event.position.x}, ${event.position.y})`;
     case 'resetAfterScore':
       return '雙方回到重生點，生命補滿';
+    case 'overheated':
+      return `${event.characterId} 的槍過熱了，下一回合不能開槍`;
+    case 'flagRerolled':
+      return `旗子太久沒人撿，從 (${event.position.x}, ${event.position.y}) 消失，重新抽位置`;
     case 'respawned':
       return `${event.characterId} 在重生點復活，生命補滿`;
     case 'overtimeStarted':

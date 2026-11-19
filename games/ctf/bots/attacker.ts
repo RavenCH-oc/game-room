@@ -4,6 +4,8 @@
 //   2. 有 15% 機率這回合不考慮開槍，直接跳到第 3 點。否則，對手在場、不是無敵時：
 //      先決定瞄準哪一格：25% 機率瞄「對手現在的位置」，其餘瞄「猜對手這回合會走到的那一格」。
 //      瞄的那一格在自己的射擊線上，就朝那個方向射擊。
+//      v0.7：射擊線照自己這回合的射程（原地連射會變短）；自己過熱時直接跳到第 3 點。
+//      不會為了恢復射程而特地移動。
 //   3. 否則，旗子在對手手上：走最短路追他。
 //   4. 否則：照共用的「去找旗子」規定。
 // 兩個機率放在設定檔 games/ctf/core/config.ts 的 bots。
@@ -11,6 +13,7 @@
 import {
   CTF_CONFIG,
   samePosition,
+  shootRangeOf,
   step,
   type Bot,
   type Character,
@@ -39,13 +42,15 @@ export function createAttacker(aiSeed: number, config: CtfConfig = CTF_CONFIG): 
     }
 
     // 2. 考慮開槍（有一定機率這回合不考慮）
-    const skipShooting = random() < config.bots.attackerSkipShootingChance;
+    // v0.7：自己過熱時直接跳到第 3 點（不取「不考慮開槍」那次亂數）；射擊線照自己這回合的射程
+    const skipShooting = self.overheated || random() < config.bots.attackerSkipShootingChance;
+    const range = shootRangeOf(self, config);
     if (!skipShooting) {
       for (const opponent of state.characters) {
         if (opponent.team === self.team || !opponent.position || opponent.invulnerableRoundsLeft > 0) continue;
         const aimAtCurrent = random() < config.bots.attackerAimAtCurrentChance;
         const target = aimAtCurrent ? opponent.position : predictNextPosition(state, opponent, position, random);
-        const direction = shootingDirection(position, target, map, config.shootRange);
+        const direction = shootingDirection(position, target, map, range);
         if (direction) return { type: 'shoot', direction };
       }
     }
