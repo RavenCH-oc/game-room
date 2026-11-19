@@ -217,7 +217,9 @@ describe('第 4 節：房間流程', () => {
   });
 
   it('對 AI：AI 每回合由伺服器呼叫腳本出手', () => {
-    const manager = classicManager();
+    // 搶旗 AI 有 10% 機率這回合不動：把這個機率設成 0、種子也固定，每次結果都一樣
+    const ctfConfig: CtfConfig = { ...CTF_CONFIG, bots: { ...CTF_CONFIG.bots, flagRunnerStayChance: 0 } };
+    const manager = classicManager({ ctfConfig, generateSeed: () => 1 });
     const a = fakeClient(manager);
     a.send({ type: 'createRoom', nickname: '小明', opponent: { kind: 'ai', botId: 'runner' } });
     vi.advanceTimersByTime(COUNTDOWN_MS);
