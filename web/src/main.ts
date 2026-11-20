@@ -211,6 +211,13 @@ function amCarrier(): boolean {
   return room?.game?.flag.status === 'carried' && room.game.flag.carrierId === room.yourCharacterId;
 }
 
+/** 現在不能射擊的原因（拿著旗子、v0.7：過熱）；可以射擊時回傳 null */
+function shootBlockReason(): string | null {
+  if (amCarrier()) return '拿著旗子時不能射擊';
+  if (myCharacter()?.overheated) return '過熱，這回合不能開槍';
+  return null;
+}
+
 /** 現在可以送動作嗎（比賽中、自己在場上） */
 function canAct(): boolean {
   return room?.phase === 'playing' && Boolean(myCharacter()?.position);
@@ -230,7 +237,7 @@ function onCellClick(position: Position): void {
   if (!direction) return;
 
   if (shootMode) {
-    sendAction({ type: 'shoot', direction });
+    if (!shootBlockReason()) sendAction({ type: 'shoot', direction });
     return;
   }
   const isNeighbour = Math.abs(me.position.x - position.x) + Math.abs(me.position.y - position.y) === 1;
@@ -239,7 +246,8 @@ function onCellClick(position: Position): void {
 
 shootButton.addEventListener('click', () => {
   if (!canAct()) return;
-  if (amCarrier()) return setHint('拿著旗子時不能射擊。');
+  const blocked = shootBlockReason();
+  if (blocked) return setHint(`${blocked}。`);
   shootMode = !shootMode;
   setHint(shootMode ? '點上、下、左、右任一方向的格子來射擊（再按一次「射擊」取消）。' : '');
   render();
@@ -265,7 +273,8 @@ document.addEventListener('keydown', (event) => {
     sendAction({ type: 'move', direction: moveDirection });
   } else if (shotDirection) {
     event.preventDefault();
-    if (amCarrier()) setHint('拿著旗子時不能射擊。');
+    const blocked = shootBlockReason();
+    if (blocked) setHint(`${blocked}。`);
     else sendAction({ type: 'shoot', direction: shotDirection });
   } else if (key === 'f') {
     if (amCarrier()) sendAction({ type: 'dropFlag' });
@@ -275,6 +284,18 @@ document.addEventListener('keydown', (event) => {
     sendAction({ type: 'stay' });
   }
 });
+
+/**
+ * v0.7：旗子在地上、再 5 回合以內就要重抽時，顯示「旗子 N 回合後換位置」。
+ * N = 旗子重抽回合數 − 閒置回合數（閒置回合數到了重抽回合數的那一回合結算完就重抽）。
+ */
+const FLAG_REROLL_WARNING_ROUNDS = 5;
+function flagRerollText(status: string, idleRounds: number): string {
+  const rerollRounds = CTF_CONFIG.flagRerollRounds;
+  if (status !== 'onGround' || rerollRounds <= 0) return '';
+  const left = rerollRounds - idleRounds;
+  return left >= 1 && left <= FLAG_REROLL_WARNING_ROUNDS ? `旗子 ${left} 回合後換位置` : '';
+}
 
 function setHint(text: string): void {
   $('control-hint').textContent = text;
@@ -332,7 +353,7 @@ function render(): void {
       ? `旗子還沒出現，${game.flag.roundsLeft} 回合後公布位置`
       : game.flag.status === 'announced'
         ? `旗子 ${game.flag.roundsLeft} 回合後出現`
-        : '';
+        : flagRerollText(game.flag.status, game.flagIdleRounds);
   flagStatus.textContent = flagText;
   flagStatus.hidden = flagText === '' || room.phase === 'finished';
 
@@ -357,16 +378,21 @@ function render(): void {
   } else if (room.phase === 'playing') {
     const mine = room.yourAction ? `你選了：${describeAction(room.yourAction)}（時間到前可以改）` : '請選擇這回合的動作';
     const theirs = opponentSeat?.isAi ? '' : room.opponentReady ? ' · 對手已選好 ✓' : ' · 對手還在想…';
-    status = mine + theirs;
+    // v0.7：自己過熱時在狀態列寫出來
+    const overheated = me?.overheated ? ' · 你的槍過熱，這回合不能開槍' : '';
+    status = mine + theirs + overheated;
   }
   $('status-line').textContent = status;
 
   // 按鈕
   const acting = canAct();
   const carrier = amCarrier();
-  shootButton.disabled = !acting || carrier;
-  shootButton.title = carrier ? '拿著旗子時不能射擊' : '';
-  shootButton.textContent = carrier ? '射擊（拿著旗子不能用）' : '射擊';
+  // 拿著旗子、v0.7：過熱時，射擊按鈕停用並顯示原因
+  const blocked = shootBlockReason();
+  if (blocked) shootMode = false;
+  shootButton.disabled = !acting || blocked !== null;
+  shootButton.title = blocked ?? '';
+  shootButton.textContent = carrier ? '射擊（拿著旗子不能用）' : blocked ? `射擊（${blocked}）` : '射擊';
   shootButton.classList.toggle('active', shootMode);
   dropButton.disabled = !acting || !carrier;
   stayButton.disabled = !acting;

@@ -8,6 +8,7 @@ import {
   isInsideBoard,
   isWall,
   samePosition,
+  shootRangeOf,
   step,
   type Direction,
   type GameEvent,
@@ -77,7 +78,8 @@ export function createBoard(
     const me = game.characters.find((character) => character.id === myId);
     const myPosition = me?.position ?? null;
     const moveTargets = input.highlight === 'move' && me && myPosition ? neighbours(myPosition, me.team, map) : [];
-    const shootTargets = input.highlight === 'shoot' && myPosition ? lineCells(myPosition, map) : [];
+    // v0.7：可射擊的格子照自己現在的射程畫
+    const shootTargets = input.highlight === 'shoot' && me && myPosition ? lineCells(myPosition, map, shootRangeOf(me, config)) : [];
 
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
@@ -104,6 +106,13 @@ export function createBoard(
           if (input.flashIds.has(character.id)) piece.classList.add('hit');
           piece.appendChild(label(character.id === myId ? '你' : '敵', ''));
           piece.appendChild(hpBar(character.hp));
+          // v0.7：射程比射擊距離短時顯示「射程 N」；過熱時角色上有記號和「過熱」字樣
+          const range = shootRangeOf(character, config);
+          if (range < config.shootRange) piece.appendChild(label(`射程${range}`, 'range-label'));
+          if (character.overheated) {
+            piece.classList.add('overheated');
+            piece.appendChild(label('過熱', 'overheat-label'));
+          }
           if (game.flag.status === 'carried' && game.flag.carrierId === character.id) {
             piece.appendChild(label('🚩', 'carried-flag'));
           }
@@ -174,11 +183,11 @@ function neighbours(position: Position, team: 'A' | 'B', map: GameMap): Position
 }
 
 /** 射擊模式時要標示的格子：四個方向、射程以內、遇到牆停 */
-function lineCells(position: Position, map: GameMap): Position[] {
+function lineCells(position: Position, map: GameMap, range: number): Position[] {
   const result: Position[] = [];
   for (const direction of DIRECTIONS) {
     let cell = position;
-    for (let distance = 1; distance <= config.shootRange; distance++) {
+    for (let distance = 1; distance <= range; distance++) {
       cell = step(cell, direction);
       if (!isInsideBoard(cell, map) || isWall(cell, map)) break;
       result.push(cell);

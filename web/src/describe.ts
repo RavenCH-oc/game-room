@@ -47,6 +47,12 @@ export function describeEvent(event: GameEvent, myId: string): string | null {
       return '旗子出現了';
     case 'resetAfterScore':
       return '雙方回到重生點，生命補滿';
+    case 'overheated':
+      // v0.7
+      return event.characterId === myId ? '你的槍過熱了，下一回合不能開槍' : '對手的槍過熱了';
+    case 'flagRerolled':
+      // v0.7
+      return '旗子太久沒人撿，重新抽位置';
     case 'respawned':
       return `${who(event.characterId)}在重生點復活`;
     case 'overtimeStarted':

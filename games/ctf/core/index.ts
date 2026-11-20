@@ -14,6 +14,7 @@ export {
 } from './map.ts';
 export { fnv1a, isValidSeed, MAX_SEED, nextRandom, pickIndex } from './random.ts';
 export { resolveRound } from './resolve.ts';
+export { shootRangeOf } from './shootRange.ts';
 export {
   DIRECTIONS,
   isDirection,

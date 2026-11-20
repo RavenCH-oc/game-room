@@ -20,6 +20,10 @@ interface CharacterSetup {
   hp?: number;
   respawnCountdown?: number;
   invulnerableRoundsLeft?: number;
+  /** v0.7：原地連射次數（預設 0） */
+  stationaryShots?: number;
+  /** v0.7：過熱（預設否） */
+  overheated?: boolean;
 }
 
 interface StateSetup {
@@ -36,6 +40,8 @@ interface StateSetup {
   seed?: number;
   /** 地圖（預設 9×9 固定地圖） */
   map?: GameMap;
+  /** v0.7：旗子閒置回合數（預設 0） */
+  flagIdleRounds?: number;
 }
 
 function applySetup(character: Character, setup: CharacterSetup): void {
@@ -43,6 +49,8 @@ function applySetup(character: Character, setup: CharacterSetup): void {
   character.hp = setup.hp ?? (setup.position ? CTF_CONFIG.maxHp : 0);
   character.respawnCountdown = setup.respawnCountdown ?? (setup.position ? 0 : 2);
   character.invulnerableRoundsLeft = setup.invulnerableRoundsLeft ?? 0;
+  character.stationaryShots = setup.stationaryShots ?? 0;
+  character.overheated = setup.overheated ?? false;
 }
 
 /** 從開場出發，只改掉指定的部分 */
@@ -58,6 +66,8 @@ export function makeState(setup: StateSetup = {}): GameState {
       hp: 0,
       respawnCountdown: 0,
       invulnerableRoundsLeft: 0,
+      stationaryShots: 0,
+      overheated: false,
     };
     applySetup(character, extra);
     state.characters.push(character);
@@ -67,6 +77,7 @@ export function makeState(setup: StateSetup = {}): GameState {
   if (setup.knockdowns) state.knockdowns = { ...setup.knockdowns };
   if (setup.round !== undefined) state.round = setup.round;
   if (setup.phase) state.phase = setup.phase;
+  if (setup.flagIdleRounds !== undefined) state.flagIdleRounds = setup.flagIdleRounds;
   return state;
 }
 

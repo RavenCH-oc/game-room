@@ -1,5 +1,6 @@
-// 回合結算（規則第 4、5、6 節，v0.5）。
-// 順序：放旗 → 移動 → 撿旗 → 得分 → 射擊 →（得分後重新開局）→ 重生與倒數，整回合做完才判定勝負。
+// 回合結算（規則第 4、5、6 節，v0.7）。
+// 順序：放旗 → 移動 → 撿旗 → 得分 → 射擊 →（原地連射次數）→（得分後重新開局）→ 重生與倒數
+//       →（旗子閒置與重抽），整回合做完才判定勝負。
 // 純邏輯：不改傳進來的場面、不計時。需要隨機時只用場面裡的種子亂數，
 // 所以同樣的輸入一定得到同樣的輸出。
 
@@ -14,6 +15,7 @@ import {
 } from './board.ts';
 import { CTF_CONFIG, type CtfConfig } from './config.ts';
 import { advanceFlagStage, startFlagCycle } from './flag.ts';
+import { shootRangeOf } from './shootRange.ts';
 import type {
   Action,
   ActionMap,
@@ -124,6 +126,9 @@ export function resolveRound(
   // ── 步驟 5：射擊（v0.4：以移動之後的位置判定） ──
   const { knockedDownIds, knockdownTeams } = resolveShooting(next, chosenActions, startPositions, config, events);
 
+  // ── 原地連射次數與過熱（v0.7）：步驟 5 做完之後更新 ──
+  updateStationaryShots(next, chosenActions, movedIds, config, events);
+
   // ── 得分後重新開局（v0.5，開關）：射擊結算完、步驟 6 之前 ──
   if (scoredThisRound && config.resetOnScore) {
     resetAllToSpawn(next, config, events);
@@ -131,6 +136,9 @@ export function resolveRound(
 
   // ── 步驟 6：重生與無敵倒數、旗子階段的倒數 ──
   resolveCountdowns(next, knockedDownIds, scoredThisRound, config, events);
+
+  // ── 旗子閒置與重抽（v0.7）：六個步驟都做完之後、判定勝負之前 ──
+  updateFlagIdle(next, config, events);
 
   // ── 六個步驟都做完，才判定勝負 ──
   // ── 勝負判定（規則第 6 節） ──
@@ -178,6 +186,8 @@ function normalizeAction(
     case 'shoot':
       if (!isDirection(action.direction)) return reject('方向不正確');
       if (isCarrier) return reject('持旗者不能射擊');
+      // v0.7：過熱的那一回合不能射擊
+      if (character.overheated) return reject('過熱，這回合不能開槍');
       return { type: 'shoot', direction: action.direction };
     case 'dropFlag':
       if (!isCarrier) return reject('沒有拿旗不能放旗');
@@ -219,11 +229,13 @@ function resolveShooting(
     const from = positionsNow.get(shooter.id);
     if (action?.type !== 'shoot' || !from) continue;
 
+    // v0.7：這一槍的射程照開槍者「回合開始時」的原地連射次數（次數在射擊做完之後才更新）
+    const range = shootRangeOf(shooter, config);
     // 子彈停在路徑上第一個角色身上；無敵的角色也會擋下子彈
-    const { character: target, endPosition } = traceBullet(next, shooter.id, from, action.direction, positionsNow, config);
+    const { character: target, endPosition } = traceBullet(next, shooter.id, from, action.direction, positionsNow, range);
     // 給畫面用：回合開始時站在這條線上的人，如果現在沒被打到，就是「閃掉了」；
     // 現在被打到的人，回合開始時不是這條線上的第一個人，就是「走進射擊線」
-    const atStart = traceBullet(next, shooter.id, from, action.direction, startPositions, config).character;
+    const atStart = traceBullet(next, shooter.id, from, action.direction, startPositions, range).character;
     events.push({
       type: 'shot',
       shooterId: shooter.id,
@@ -233,6 +245,7 @@ function resolveShooting(
       hitId: target?.id ?? null,
       dodgedId: atStart && atStart.id !== target?.id ? atStart.id : null,
       movedIntoLine: target !== null && atStart?.id !== target.id,
+      range,
     });
     if (!target) continue;
 
@@ -282,6 +295,9 @@ function resolveShooting(
     }
 
     target.position = null;
+    // v0.7：倒地時原地連射次數歸零、過熱解除
+    target.stationaryShots = 0;
+    target.overheated = false;
     target.respawnCountdown = config.knockedDownRounds;
     target.invulnerableRoundsLeft = 0;
   }
@@ -290,7 +306,7 @@ function resolveShooting(
 }
 
 /**
- * 子彈的路徑：直線最遠 shootRange 格，停在路徑上第一個角色身上；遇到牆壁或場外就停。
+ * 子彈的路徑：直線最遠 range 格（v0.7：照開槍者這回合的射程），停在路徑上第一個角色身上；遇到牆壁或場外就停。
  * positions 決定「角色在哪裡」（判定用移動後的位置）。
  * 回傳打到的角色，以及子彈停下的格子（給畫面畫線用）。
  */
@@ -300,10 +316,10 @@ function traceBullet(
   from: Position,
   direction: Direction,
   positions: Map<string, Position>,
-  config: CtfConfig,
+  range: number,
 ): { character: Character | null; endPosition: Position } {
   let cell = from;
-  for (let distance = 1; distance <= config.shootRange; distance++) {
+  for (let distance = 1; distance <= range; distance++) {
     const nextCell = step(cell, direction);
     // v0.6：牆壁和場地大小照場面裡的地圖
     if (!isInsideBoard(nextCell, state.map) || isWall(nextCell, state.map)) break;
@@ -427,8 +443,77 @@ function resetAllToSpawn(next: GameState, config: CtfConfig, events: GameEvent[]
     character.hp = config.maxHp;
     character.respawnCountdown = 0;
     character.invulnerableRoundsLeft = 0;
+    // v0.7：回家的那一刻原地連射次數歸零、過熱解除
+    character.stationaryShots = 0;
+    character.overheated = false;
   }
   events.push({ type: 'resetAfterScore' });
+}
+
+/**
+ * 原地連射次數與過熱（v0.7，規則第 5 節「原地連射與過熱」），步驟 5 做完之後執行：
+ * - 回合開始時就過熱的角色：過熱只持續一回合，這回合結算完就解除。
+ * - 每個在場角色：這回合有開槍 → 次數加 1；成功移動 → 歸零；其他（不動、放旗、移動但留在原位、
+ *   不合法被當成不動）→ 不變。
+ * - 開槍後新的次數是過熱門檻的倍數 → 下一回合過熱，事件清單記一筆「過熱」。
+ * 「原地連射懲罰」關掉時次數永遠是 0、不會過熱。
+ */
+function updateStationaryShots(
+  next: GameState,
+  chosenActions: Map<string, Action>,
+  movedIds: Set<string>,
+  config: CtfConfig,
+  events: GameEvent[],
+): void {
+  for (const character of next.characters) {
+    character.overheated = false;
+    if (!config.stationaryShotPenalty) {
+      character.stationaryShots = 0;
+      continue;
+    }
+    // 這回合倒地的角色已經在射擊步驟歸零，不在場的不更新
+    if (!character.position) continue;
+    if (movedIds.has(character.id)) {
+      character.stationaryShots = 0;
+    } else if (chosenActions.get(character.id)?.type === 'shoot') {
+      character.stationaryShots += 1;
+      const threshold = config.overheatThreshold;
+      if (threshold > 0 && character.stationaryShots % threshold === 0) {
+        character.overheated = true;
+        events.push({ type: 'overheated', characterId: character.id });
+      }
+    }
+  }
+}
+
+/**
+ * 旗子閒置與重抽（v0.7，規則第 5 節「旗子重抽」），六個步驟都做完之後、判定勝負之前：
+ * 1. 這回合發生了「旗子出現」「有人撿起旗子」「有人得分」任何一件：閒置回合數歸零。
+ * 2. 否則，旗子在地上或被拿著：加 1。
+ * 3. 否則（隱藏或預告）：0。
+ * 4. 到了「旗子重抽回合數」以上、而且旗子在地上：重抽（變成隱藏，和得分後一樣；這一回合不減隱藏的回合數）。
+ * 「旗子重抽回合數」是 0 時不重抽，閒置回合數永遠是 0。
+ */
+function updateFlagIdle(next: GameState, config: CtfConfig, events: GameEvent[]): void {
+  if (config.flagRerollRounds <= 0) {
+    next.flagIdleRounds = 0;
+    return;
+  }
+  const reset = events.some((event) => event.type === 'flagAppeared' || event.type === 'flagPickedUp' || event.type === 'scored');
+  if (reset) {
+    next.flagIdleRounds = 0;
+  } else if (next.flag.status === 'onGround' || next.flag.status === 'carried') {
+    next.flagIdleRounds += 1;
+  } else {
+    next.flagIdleRounds = 0;
+  }
+
+  if (next.flag.status === 'onGround' && next.flagIdleRounds >= config.flagRerollRounds) {
+    events.push({ type: 'flagRerolled', position: { ...next.flag.position } });
+    next.flagIdleRounds = 0;
+    // 和得分後一樣進入「隱藏」；上一面旗子出現的那一格（lastFlagSpawn）不變，下次抽位置時會去掉
+    startFlagCycle(next, config, events);
+  }
 }
 
 /** 步驟 6：無敵倒數、重生倒數、旗子階段的倒數 */
