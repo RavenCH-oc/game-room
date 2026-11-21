@@ -222,17 +222,22 @@ describe('第 8 節：攻擊型 AI（v0.5）', () => {
   });
 
   it('猜法：對手拿著旗，猜他往他家走一步', () => {
-    // B1 拿旗在(6, 0)，往家 (8, 4) 走：往下、往右都一樣短，隨機猜一個
     const state = makeState({
       A1: { position: { x: 0, y: 0 } },
       B1: { position: { x: 6, y: 0 } },
       flag: { status: 'carried', carrierId: 'B1' },
     });
-    const guesses = AI_SEEDS.map((aiSeed) =>
-      predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, createRoundRandom(aiSeed, 0, 'A1')),
-    );
-    const keys = new Set(guesses.map((guess) => `${guess.x},${guess.y}`));
-    expect(keys).toEqual(new Set(['6,1', '7,0']));
+    const guessesWith = (config: CtfConfig) =>
+      new Set(
+        AI_SEEDS.map((aiSeed) => {
+          const guess = predictNextPosition(state, state.characters[1]!, { x: 0, y: 0 }, createRoundRandom(aiSeed, 0, 'A1'), config);
+          return `${guess.x},${guess.y}`;
+        }),
+      );
+    // 「整排得分」關掉（v0.7 以前的規則）：B1 拿旗在 (6, 0)，往家 (8, 4) 走：往下、往右都一樣短，隨機猜一個
+    expect(guessesWith({ ...CTF_CONFIG, wholeRowScoring: false })).toEqual(new Set(['6,1', '7,0']));
+    // v0.8（預設）：他家是離他最近的得分格 (8, 0)，只有往右一條最短路
+    expect(guessesWith(CTF_CONFIG)).toEqual(new Set(['7,0']));
   });
 
   it('猜法：旗子在地上，猜他往旗子走一步', () => {
@@ -449,15 +454,18 @@ describe('第 8 節：範例 AI 用的是場面裡的地圖（v0.6）', () => {
   };
 
   it('找路時會繞過那張地圖的牆', () => {
-    // A1 拿旗在 (3, 4) 要回家 (0, 4)：直走會撞到 (2, 4)，最短路要往上或往下繞
     const state = makeState({
       map: TEST_MAP,
       A1: { position: { x: 3, y: 4 } },
       B1: { position: { x: 8, y: 8 } },
       flag: { status: 'carried', carrierId: 'A1' },
     });
-    const directions = new Set(decideWithEverySeed((aiSeed) => createFlagRunner(aiSeed, NO_CHANCE), state).map(moveDirection));
-    expect(directions).toEqual(new Set(['up', 'down']));
+    const directionsWith = (config: CtfConfig) =>
+      new Set(decideWithEverySeed((aiSeed) => createFlagRunner(aiSeed, config), state).map(moveDirection));
+    // 「整排得分」關掉：A1 拿旗在 (3, 4) 要回家 (0, 4)，直走會撞到 (2, 4)，最短路要往上或往下繞
+    expect(directionsWith({ ...NO_CHANCE, wholeRowScoring: false })).toEqual(new Set(['up', 'down']));
+    // v0.8（預設）：最近的得分格是 (0, 3) 和 (0, 5)（都要 4 步，(0, 4) 繞牆要 5 步），一樣近選 y 小的 (0, 3)：往上繞
+    expect(directionsWith(NO_CHANCE)).toEqual(new Set(['up']));
   });
 
   it('預設地圖的牆在這張地圖上不存在：(4, 0) 往 (4, 2) 可以直接往下走', () => {

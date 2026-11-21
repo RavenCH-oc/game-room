@@ -1,5 +1,5 @@
 // 範例 AI：搶旗（規則第 8 節，v0.5 整段重寫）。不射擊。
-//   1. 自己拿著旗：走最短路回家。
+//   1. 自己拿著旗：走最短路回家（v0.8：家是離自己最近的得分格，見 pathfinding.ts 的 homeTarget）。
 //   2. 否則，有 10% 機率這回合不動。（兩個搶旗 AI 才不會永遠互相彈回。）
 //   3. 否則，旗子在對手手上：走最短路到自己的待命點，到了就不動。（v0.6：原本往場地正中央走）
 //   4. 否則：照共用的「去找旗子」規定。
@@ -7,7 +7,7 @@
 
 import { CTF_CONFIG, type Bot, type CtfConfig } from '../core/index.ts';
 import { createRoundRandom } from './botRandom.ts';
-import { moveTowards, seekFlag, standbyPoint } from './pathfinding.ts';
+import { homeTarget, moveTowards, seekFlag, standbyPoint } from './pathfinding.ts';
 
 export function createFlagRunner(aiSeed: number, config: CtfConfig = CTF_CONFIG): Bot {
   return (view) => {
@@ -20,9 +20,9 @@ export function createFlagRunner(aiSeed: number, config: CtfConfig = CTF_CONFIG)
     // v0.6：地圖從看到的場面讀
     const map = state.map;
 
-    // 1. 自己拿著旗：回家
+    // 1. 自己拿著旗：回家（v0.8：走到離自己最近的得分格）
     if (flag.status === 'carried' && flag.carrierId === selfId) {
-      return moveTowards(position, map.spawnPoints[self.team], self.team, map, random);
+      return moveTowards(position, homeTarget(position, self.team, map, config), self.team, map, random);
     }
 
     // 2. 有一定機率這回合不動

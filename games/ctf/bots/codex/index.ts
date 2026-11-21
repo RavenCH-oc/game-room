@@ -1,6 +1,6 @@
 import {
-  CTF_CONFIG, DIRECTIONS, otherTeam, resolveRound, samePosition, shootRangeOf, step,
-  type Action, type Bot, type Character, type CtfConfig, type GameState, type Position, type PublicGameState,
+  CTF_CONFIG, DIRECTIONS, otherTeam, resolveRound, samePosition, scoringCells, shootRangeOf, step,
+  type Action, type Bot, type Character, type CtfConfig, type GameState, type Position, type PublicGameState, type Team,
 } from '../../core/index.ts';
 import { createRoundRandom } from '../botRandom.ts';
 import { standbyPoint } from '../pathfinding.ts';
@@ -36,10 +36,23 @@ export function legalActions(state: PublicGameState, who: Character, geo: Geomet
   return actions;
 }
 
-function goal(state: PublicGameState, who: Character): Position {
+/** v0.8：離 from 最近的得分格（走路步數；一樣近時先選重生點，再選 y 最小的）。整排得分關掉時就是重生點。 */
+function nearestScoringCell(state: PublicGameState, team: Team, from: Position, geo: Geometry, config: CtfConfig): Position {
+  const spawn = state.map.spawnPoints[team];
+  let best = spawn;
+  let bestDistance = Infinity;
+  for (const cell of scoringCells(team, state.map, config)) {
+    const d = geo.distance(from, cell, team);
+    if (d < bestDistance || (d === bestDistance && samePosition(cell, spawn))) { best = cell; bestDistance = d; }
+  }
+  return best;
+}
+
+function goal(state: PublicGameState, who: Character, geo: Geometry, config: CtfConfig): Position {
   const flag = state.flag;
   if (flag.status === 'carried') {
-    if (flag.carrierId === who.id) return state.map.spawnPoints[who.team];
+    // v0.8：持旗者自己的目標是離他最近的得分格（原本是重生點）
+    if (flag.carrierId === who.id) return nearestScoringCell(state, who.team, who.position ?? state.map.spawnPoints[who.team], geo, config);
     return state.characters.find(c => c.id === flag.carrierId)?.position ?? standbyPoint(who.team, state.map);
   }
   if (flag.status === 'onGround') return flag.position;
@@ -50,7 +63,7 @@ function goal(state: PublicGameState, who: Character): Position {
 /** 對所有可行下一步保留機率，沒有使用對手代號、內部記憶或未結算動作。 */
 function prior(state: PublicGameState, who: Character, rival: Character, actions: Action[], geo: Geometry, aggression: number, inertia = 0, config: CtfConfig = CTF_CONFIG): number[] {
   if (!who.position) return [1];
-  const target = goal(state, who);
+  const target = goal(state, who, geo, config);
   const distance = geo.distance(who.position, target, who.team);
   const waiting = state.flag.status === 'announced' && distance === 1;
   const moves: number[] = actions.map(action => {
@@ -65,7 +78,7 @@ function prior(state: PublicGameState, who: Character, rival: Character, actions
   // v0.7：猜 who 會不會開槍、往哪裡開，照 who 現在的射程；過熱時不會開槍
   const whoShots = geo.shotsFor(shootRangeOf(who, config));
   if (rival.position && rival.invulnerableRoundsLeft === 0 && !who.overheated) {
-    const rivalGoal = goal(state, rival);
+    const rivalGoal = goal(state, rival, geo, config);
     const before = geo.distance(rival.position, rivalGoal, rival.team);
     const targets = [{ p: rival.position, weight: 0.35 }];
     const candidates = DIRECTIONS.filter((d, i) => geo.canMove(rival.position!, i, rival.team) &&
@@ -121,7 +134,8 @@ function evaluate(state: PublicGameState, selfId: string, geo: Geometry, config:
     const carrier = flag.carrierId === selfId ? me : enemy;
     const defender = carrier === me ? enemy : me;
     const sign = carrier === me ? 1 : -1;
-    const homeDistance = distance(carrier, state.map.spawnPoints[carrier.team]);
+    // v0.8：「持旗者離家多遠」是到離他最近的得分格的距離（原本是到重生點）
+    const homeDistance = distance(carrier, nearestScoringCell(state, carrier.team, carrier.position ?? state.map.spawnPoints[carrier.team], geo, config));
     value += sign * (65 - homeDistance * 3.5);
     if (carrier.position && defender.position) {
       // 追近持旗者，但不把進不了的敵方家門當成可攔截位置。
@@ -135,7 +149,8 @@ function evaluate(state: PublicGameState, selfId: string, geo: Geometry, config:
           // v0.7：持旗者下一步安不安全，照防守者現在的射程
           if (geo.shotsFor(shootRangeOf(defender, config))[geo.key(defender.position)]![geo.key(to)]! < 0) {
             safe++;
-            if (geo.distance(to, state.map.spawnPoints[carrier.team], carrier.team) < homeDistance) progress++;
+            // v0.8：下一步那一格到「最近的得分格」的距離比現在的離家距離小，就算前進
+            if (geo.distance(to, nearestScoringCell(state, carrier.team, to, geo, config), carrier.team) < homeDistance) progress++;
           }
         }
         value -= sign * future * (progress ? 0 : safe ? 6 : 18);

@@ -40,6 +40,7 @@ describe('第 7 節：設定檔', () => {
       overtimeMaxRounds: 50,
       dropFlagWhenHit: true,
       resetOnScore: false,
+      wholeRowScoring: true, // v0.8：整排得分，預設開
       bots: {
         attackerAimAtCurrentChance: 0.25,
         attackerSkipShootingChance: 0.15,

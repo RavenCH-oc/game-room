@@ -3,6 +3,7 @@
 import { CTF_CONFIG, type Action, type Direction, type GameEvent, type Position, type PublicGameState } from '../../games/ctf/core/index.ts';
 import type { BotListItem, OpponentChoice, RoomView, ServerMessage } from '../../server/protocol.ts';
 import { createBoard, directionTowards } from './board.ts';
+import { flagRerollRoundsLeft } from './flagReroll.ts';
 import { connect } from './connection.ts';
 import { describeAction, describeEvent, describeResult } from './describe.ts';
 import { clearTabToken, loadNickname, loadToken, saveNickname, saveToken } from './storage.ts';
@@ -285,16 +286,10 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-/**
- * v0.7：旗子在地上、再 5 回合以內就要重抽時，顯示「旗子 N 回合後換位置」。
- * N = 旗子重抽回合數 − 閒置回合數（閒置回合數到了重抽回合數的那一回合結算完就重抽）。
- */
-const FLAG_REROLL_WARNING_ROUNDS = 5;
-function flagRerollText(status: string, idleRounds: number): string {
-  const rerollRounds = CTF_CONFIG.flagRerollRounds;
-  if (status !== 'onGround' || rerollRounds <= 0) return '';
-  const left = rerollRounds - idleRounds;
-  return left >= 1 && left <= FLAG_REROLL_WARNING_ROUNDS ? `旗子 ${left} 回合後換位置` : '';
+/** v0.7：旗子在地上、再 5 回合以內就要重抽時，場地上方顯示「旗子 N 回合後換位置」（v0.8 起場地裡的旗子那一格也有數字） */
+function flagRerollText(game: PublicGameState): string {
+  const left = flagRerollRoundsLeft(game);
+  return left === null ? '' : `旗子 ${left} 回合後換位置`;
 }
 
 function setHint(text: string): void {
@@ -353,7 +348,7 @@ function render(): void {
       ? `旗子還沒出現，${game.flag.roundsLeft} 回合後公布位置`
       : game.flag.status === 'announced'
         ? `旗子 ${game.flag.roundsLeft} 回合後出現`
-        : flagRerollText(game.flag.status, game.flagIdleRounds);
+        : flagRerollText(game);
   flagStatus.textContent = flagText;
   flagStatus.hidden = flagText === '' || room.phase === 'finished';
 

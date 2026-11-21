@@ -15,6 +15,7 @@ import {
 } from './board.ts';
 import { CTF_CONFIG, type CtfConfig } from './config.ts';
 import { advanceFlagStage, startFlagCycle } from './flag.ts';
+import { isScoringCell } from './scoreRow.ts';
 import { shootRangeOf } from './shootRange.ts';
 import type {
   Action,
@@ -107,7 +108,8 @@ export function resolveRound(
     const carrier = next.characters.find((character) => character.id === carrierId);
     if (
       carrier?.position &&
-      samePosition(carrier.position, next.map.spawnPoints[carrier.team])
+      // v0.8：持旗者站在自己的得分格上（整排得分關掉時就是重生點）。判定在移動和撿旗之後
+      isScoringCell(carrier.position, carrier.team, next.map, config)
     ) {
       next.scores[carrier.team] += 1;
       scoredThisRound = true;

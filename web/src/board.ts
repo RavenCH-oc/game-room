@@ -7,6 +7,7 @@ import {
   isEnemySpawn,
   isInsideBoard,
   isWall,
+  isScoringCell,
   samePosition,
   shootRangeOf,
   step,
@@ -16,6 +17,7 @@ import {
   type Position,
   type PublicGameState,
 } from '../../games/ctf/core/index.ts';
+import { flagRerollRoundsLeft } from './flagReroll.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const config = CTF_CONFIG;
@@ -79,6 +81,7 @@ export function createBoard(
     const myPosition = me?.position ?? null;
     const moveTargets = input.highlight === 'move' && me && myPosition ? neighbours(myPosition, me.team, map) : [];
     // v0.7：可射擊的格子照自己現在的射程畫
+    const rerollLeft = flagRerollRoundsLeft(game);
     const shootTargets = input.highlight === 'shoot' && me && myPosition ? lineCells(myPosition, map, shootRangeOf(me, config)) : [];
 
     for (let y = 0; y < map.height; y++) {
@@ -88,7 +91,9 @@ export function createBoard(
         const classes = ['cell'];
         if (isWall(position, map)) classes.push('wall');
         if (samePosition(position, map.spawnPoints.A)) classes.push('spawn-a');
+        else if (isScoringCell(position, 'A', map, config)) classes.push('score-a'); // v0.8：得分格塗淡藍（重生點維持原樣）
         if (samePosition(position, map.spawnPoints.B)) classes.push('spawn-b');
+        else if (isScoringCell(position, 'B', map, config)) classes.push('score-b'); // v0.8：得分格塗淡紅
         if (moveTargets.some((target) => samePosition(target, position))) classes.push('can-move');
         if (shootTargets.some((target) => samePosition(target, position))) classes.push('can-shoot');
         cell.className = classes.join(' ');
@@ -119,6 +124,12 @@ export function createBoard(
           cell.appendChild(piece);
         } else if (game.flag.status === 'onGround' && samePosition(game.flag.position, position)) {
           cell.appendChild(label('🚩', 'flag'));
+        }
+        // v0.8：旗子在地上、5 回合以內要重抽時，旗子那一格直接顯示剩餘回合數（閃爍的小圓牌；有人站在上面也顯示）
+        if (rerollLeft !== null && game.flag.status === 'onGround' && samePosition(game.flag.position, position)) {
+          const badge = label(String(rerollLeft), 'reroll-badge');
+          badge.title = `旗子 ${rerollLeft} 回合後換位置`;
+          cell.appendChild(badge);
         }
         // v0.5：預告階段，在預告的格子上顯示淡淡的旗子和剩餘回合數（隱藏階段場地上什麼都沒有）
         if (game.flag.status === 'announced' && samePosition(game.flag.nextPosition, position)) {
