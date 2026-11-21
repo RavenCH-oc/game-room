@@ -34,6 +34,8 @@ export interface CtfConfig {
   dropFlagWhenHit: boolean;
   /** 得分後重新開局（v0.5，開關）：有人得分的那一回合，射擊結算完所有角色回到重生點、生命補滿 */
   resetOnScore: boolean;
+  /** 整排得分（v0.8，開關）：帶旗踏進自己重生點那一整個直行的任何一格（不是牆）都得分。關掉時只有重生點那一格 */
+  wholeRowScoring: boolean;
   /** 原地連射懲罰（v0.7，開關）：原地連續開槍射程變短、到門檻過熱。關掉時射程永遠是射擊距離 */
   stationaryShotPenalty: boolean;
   /** 最短射程（v0.7）：原地連射時射程最少幾格 */
@@ -92,6 +94,7 @@ export const CTF_CONFIG: CtfConfig = {
   overtimeMaxRounds: 50,
   dropFlagWhenHit: true,
   resetOnScore: false,
+  wholeRowScoring: true,
   stationaryShotPenalty: true,
   minShootRange: 1,
   overheatThreshold: 3,

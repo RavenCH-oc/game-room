@@ -242,6 +242,46 @@ input[type='text'] {
   background: var(--team-b-light);
 }
 
+/* v0.8：得分格（重生點那一整排）：比重生點淡的隊伍顏色 */
+.cell.score-a {
+  background: color-mix(in srgb, var(--team-a-light) 45%, var(--cell));
+}
+
+.cell.score-b {
+  background: color-mix(in srgb, var(--team-b-light) 45%, var(--cell));
+}
+
+/* v0.8：旗子快要重抽時，旗子那一格右上角的倒數小圓牌（閃爍） */
+.cell .reroll-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 1.15em;
+  height: 1.15em;
+  padding: 0 2px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: bold;
+  line-height: 1.15em;
+  text-align: center;
+  z-index: 2;
+  pointer-events: none;
+  animation: reroll-blink 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes reroll-blink {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0.45;
+    transform: scale(1.15);
+  }
+}
+
 .cell .spawn-label {
   position: absolute;
   top: 1px;
