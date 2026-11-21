@@ -11,8 +11,10 @@ import {
   middleRowY,
   midlineX,
   samePosition,
+  scoringCells,
   step,
   type Action,
+  type CtfConfig,
   type Direction,
   type GameMap,
   type Position,
@@ -88,6 +90,31 @@ export function stepAside(position: Position, team: Team, map: GameMap, random: 
   const choices = DIRECTIONS.filter((direction) => canEnter(step(position, direction), team, map));
   const direction = pickOne(choices, random);
   return direction ? { type: 'move', direction } : STAY;
+}
+
+/**
+ * 「回家」的目標（v0.8，規則第 8 節「回家」）：離自己最近的得分格。
+ * - 距離照走路算的最短步數（和「走最短路」同一個算法：牆和對方重生點不能走，別的角色不算擋路）。
+ * - 一樣近時先選重生點；重生點不在其中就選 y 最小的（得分格清單本來就照 y 由小到大）。
+ * - 「整排得分」關掉時得分格只有重生點，目標就是重生點。每回合重新選。
+ */
+export function homeTarget(from: Position, team: Team, map: GameMap, config: CtfConfig): Position {
+  const spawn = map.spawnPoints[team];
+  // 從自己現在的位置往外找，一次算出到每一格的步數
+  const distances = distancesTo(from, team, map);
+  let best: Position | null = null;
+  let bestDistance = Infinity;
+  for (const cell of scoringCells(team, map, config)) {
+    const distance = distances.get(key(cell));
+    if (distance === undefined) continue; // 走不到
+    const better =
+      distance < bestDistance || (distance === bestDistance && samePosition(cell, spawn) && !samePosition(best!, spawn));
+    if (better) {
+      best = cell;
+      bestDistance = distance;
+    }
+  }
+  return best ?? { ...spawn };
 }
 
 /**

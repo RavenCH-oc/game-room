@@ -454,7 +454,7 @@ describe('第 8 節：AI（v0.7）', () => {
     for (const aiSeed of AI_SEEDS) expect(createCodex(aiSeed)(getCharacterView(hot, 'A1')).type).not.toBe('shoot');
   });
 
-  it('Codex：跑 50 場（對攻擊型、兩隊輪替），沒有任何一步是不合法的動作，過熱時不會選射擊', () => {
+  it('Codex：跑 50 場（對攻擊型、兩隊輪替），沒有任何一步是不合法的動作，過熱時不會選射擊（v0.7；v0.8 整排得分下一樣通過）', () => {
     let overheatedTurns = 0;
     for (let seed = 1; seed <= 50; seed++) {
       const codexTeam = seed % 2 ? 'A' : 'B';
@@ -499,8 +499,8 @@ describe('第 8 節：對打指令的輸出（v0.7）', () => {
     expect(attackers).toContain('  · A1 的槍過熱了，下一回合不能開槍');
     // 射程 3 時不印
     expect(attackers.some((line) => line.includes('（射程 3）'))).toBe(false);
-    // 搶旗對搶旗、種子 4：旗子太久沒人撿
-    const runners = runMatch('runner', 'runner', 4).lines;
+    // 搶旗對搶旗、種子 35：旗子太久沒人撿（v0.8 整排得分後比賽過程變了，原本的種子 4 不再出現重抽）
+    const runners = runMatch('runner', 'runner', 35).lines;
     expect(runners).toContain('  · 旗子太久沒人撿，從 (5, 0) 消失，重新抽位置');
   });
 });

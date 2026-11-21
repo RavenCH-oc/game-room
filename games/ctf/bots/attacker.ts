@@ -1,6 +1,6 @@
 // 範例 AI：攻擊型（規則第 8 節，v0.5 整段重寫）。
 // 每回合依照下面的順序：
-//   1. 自己拿著旗：走最短路回家。
+//   1. 自己拿著旗：走最短路回家（v0.8：家是離自己最近的得分格，見 pathfinding.ts 的 homeTarget）。
 //   2. 有 15% 機率這回合不考慮開槍，直接跳到第 3 點。否則，對手在場、不是無敵時：
 //      先決定瞄準哪一格：25% 機率瞄「對手現在的位置」，其餘瞄「猜對手這回合會走到的那一格」。
 //      瞄的那一格在自己的射擊線上，就朝那個方向射擊。
@@ -22,7 +22,7 @@ import {
   type PublicGameState,
 } from '../core/index.ts';
 import { createRoundRandom, type RandomSource } from './botRandom.ts';
-import { moveTowards, seekFlag, shootingDirection, standbyPoint, stepTowards } from './pathfinding.ts';
+import { homeTarget, moveTowards, seekFlag, shootingDirection, standbyPoint, stepTowards } from './pathfinding.ts';
 
 export function createAttacker(aiSeed: number, config: CtfConfig = CTF_CONFIG): Bot {
   return (view) => {
@@ -38,7 +38,8 @@ export function createAttacker(aiSeed: number, config: CtfConfig = CTF_CONFIG): 
 
     // 1. 自己拿著旗：回家
     if (flag.status === 'carried' && flag.carrierId === selfId) {
-      return moveTowards(position, map.spawnPoints[self.team], self.team, map, random);
+      // v0.8：回家 = 走到離自己最近的得分格
+      return moveTowards(position, homeTarget(position, self.team, map, config), self.team, map, random);
     }
 
     // 2. 考慮開槍（有一定機率這回合不考慮）
@@ -49,7 +50,7 @@ export function createAttacker(aiSeed: number, config: CtfConfig = CTF_CONFIG): 
       for (const opponent of state.characters) {
         if (opponent.team === self.team || !opponent.position || opponent.invulnerableRoundsLeft > 0) continue;
         const aimAtCurrent = random() < config.bots.attackerAimAtCurrentChance;
-        const target = aimAtCurrent ? opponent.position : predictNextPosition(state, opponent, position, random);
+        const target = aimAtCurrent ? opponent.position : predictNextPosition(state, opponent, position, random, config);
         const direction = shootingDirection(position, target, map, range);
         if (direction) return { type: 'shoot', direction };
       }
@@ -70,7 +71,7 @@ export function createAttacker(aiSeed: number, config: CtfConfig = CTF_CONFIG): 
 
 /**
  * 猜對手這回合會走到哪一格（規則第 8 節攻擊型第 2 點的猜法）：
- * - 對手拿著旗：往他家走一步
+ * - 對手拿著旗：往他家走一步（v0.8：他家是離他最近的得分格）
  * - 旗子在地上：往旗子走一步
  * - 預告階段：往預告位置走一步
  * - 隱藏階段：往他的待命點走一步
@@ -82,13 +83,15 @@ export function predictNextPosition(
   opponent: Character,
   myPosition: Position,
   random: RandomSource,
+  config: CtfConfig = CTF_CONFIG,
 ): Position {
   const from = opponent.position!;
   const flag = state.flag;
   const map = state.map;
   let goal: Position | null = null;
   if (flag.status === 'carried') {
-    if (flag.carrierId === opponent.id) goal = map.spawnPoints[opponent.team];
+    // v0.8：「他家」是照「回家」的規定替對手選出來的得分格（離他最近的）
+    if (flag.carrierId === opponent.id) goal = homeTarget(from, opponent.team, map, config);
   } else if (flag.status === 'onGround') {
     goal = flag.position;
   } else if (flag.status === 'announced') {
